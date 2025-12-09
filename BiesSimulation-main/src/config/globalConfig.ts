@@ -89,6 +89,29 @@ export const CONFIG = {
         TitForTat: 0.20,
         Random: 0.10,
     } as const,
+
+    // ============ EVOLUTION & REPRODUCTION ============
+    REPRODUCTION_THRESHOLD: 120,     // Energy needed to reproduce
+    REPRODUCTION_COOLDOWN: 5,        // Seconds between reproductions
+    MUTATION_CHANCE: 0.1,            // Chance to mutate traits
+    MUTATION_STRENGTH: 0.15,         // How much traits can mutate
+    STRATEGY_MUTATION_CHANCE: 0.05,  // Chance to change strategy
+    MAX_AGENTS: 150,                 // Population cap
+    MIN_AGENTS: 5,                   // Minimum population (spawn if below)
+    CHILD_ENERGY_RATIO: 0.4,         // Child gets this ratio of parent's spent energy
+
+    // ============ FOOD SYSTEM ============
+    MAX_FOOD: 100,                   // Maximum food in world
+    FOOD_RESPAWN_RATE: 0.5,          // Food spawned per second
+    FOOD_RESPAWN_BATCH: 3,           // Food spawned per batch
+    FOOD_HOTSPOTS_ENABLED: false,    // Enable food hotspots
+    FOOD_HOTSPOT_COUNT: 3,           // Number of hotspots
+    FOOD_HOTSPOT_RADIUS: 100,        // Radius of each hotspot
+    FOOD_HOTSPOT_WEIGHT: 0.7,        // Weight towards hotspot spawning
+
+    // ============ SIMULATION CONTROL ============
+    TIME_SCALE: 1.0,                 // Speed multiplier
+    PAUSED: false,                   // Initial pause state
 } as const;
 
 export type ActionType = 'FIGHT' | 'SHARE' | 'FLEE' | 'IGNORE';

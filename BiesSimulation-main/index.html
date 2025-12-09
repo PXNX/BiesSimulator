@@ -1,12 +1,175 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BiesSimulation</title>
-  </head>
-  <body>
-    <canvas id="sim-canvas"></canvas>
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BiesSimulation - Game Theory Agent Simulation</title>
+  <meta name="description"
+    content="Browser-based 2D simulation of game-theoretic agents (Hawk/Dove/Tit-for-Tat) with live statistics and evolution" />
+</head>
+
+<body>
+  <canvas id="sim-canvas"></canvas>
+
+  <!-- Controls Panel -->
+  <div id="controls-panel" class="controls-panel">
+    <div class="controls-header">
+      <h2>Controls</h2>
+      <button id="toggle-controls" class="btn-icon" title="Toggle panel">−</button>
+    </div>
+
+    <div class="controls-content">
+      <!-- Simulation Controls -->
+      <div class="control-group">
+        <div class="btn-group">
+          <button id="btn-start" class="btn btn-primary">Start</button>
+          <button id="btn-pause" class="btn">Pause</button>
+          <button id="btn-step" class="btn">Step</button>
+          <button id="btn-reset" class="btn btn-danger">Reset</button>
+        </div>
+      </div>
+
+      <!-- Speed Control -->
+      <div class="control-group">
+        <label class="control-label">
+          Speed: <span id="speed-value">1.0x</span>
+        </label>
+        <input type="range" id="speed-slider" min="0.1" max="3" step="0.1" value="1" />
+      </div>
+
+      <!-- Preset Selection -->
+      <div class="control-group">
+        <label class="control-label">Preset:</label>
+        <select id="preset-select" class="control-select">
+          <option value="Balanced">Balanced Mix</option>
+          <option value="HawkDove5050">Hawk vs Dove (50/50)</option>
+          <option value="HawkInvasion">Hawk Invasion</option>
+          <option value="TitForTatMinority">TitForTat Minority</option>
+          <option value="Scarcity">Scarcity</option>
+          <option value="Abundance">Abundance</option>
+          <option value="CooperativeWorld">Cooperative World</option>
+          <option value="Chaos">Chaos</option>
+        </select>
+      </div>
+
+      <!-- Population Sliders -->
+      <div class="control-group">
+        <label class="control-label">Strategy Ratios:</label>
+        <div class="strategy-slider">
+          <span class="strategy-label aggressive">Aggressive</span>
+          <input type="range" id="ratio-aggressive" min="0" max="100" value="25" />
+          <span class="ratio-value" id="ratio-aggressive-val">25%</span>
+        </div>
+        <div class="strategy-slider">
+          <span class="strategy-label passive">Passive</span>
+          <input type="range" id="ratio-passive" min="0" max="100" value="25" />
+          <span class="ratio-value" id="ratio-passive-val">25%</span>
+        </div>
+        <div class="strategy-slider">
+          <span class="strategy-label cooperative">Cooperative</span>
+          <input type="range" id="ratio-cooperative" min="0" max="100" value="20" />
+          <span class="ratio-value" id="ratio-cooperative-val">20%</span>
+        </div>
+        <div class="strategy-slider">
+          <span class="strategy-label titfortat">TitForTat</span>
+          <input type="range" id="ratio-titfortat" min="0" max="100" value="20" />
+          <span class="ratio-value" id="ratio-titfortat-val">20%</span>
+        </div>
+        <div class="strategy-slider">
+          <span class="strategy-label random">Random</span>
+          <input type="range" id="ratio-random" min="0" max="100" value="10" />
+          <span class="ratio-value" id="ratio-random-val">10%</span>
+        </div>
+      </div>
+
+      <!-- Simulation Parameters -->
+      <div class="control-group">
+        <label class="control-label">Parameters:</label>
+        <div class="param-slider">
+          <span>Food Rate</span>
+          <input type="range" id="param-foodrate" min="0.1" max="2" step="0.1" value="0.5" />
+          <span id="param-foodrate-val">0.5/s</span>
+        </div>
+        <div class="param-slider">
+          <span>Max Agents</span>
+          <input type="range" id="param-maxagents" min="20" max="300" step="10" value="150" />
+          <span id="param-maxagents-val">150</span>
+        </div>
+        <div class="param-slider">
+          <span>Mutation</span>
+          <input type="range" id="param-mutation" min="0" max="0.5" step="0.01" value="0.1" />
+          <span id="param-mutation-val">10%</span>
+        </div>
+      </div>
+
+      <!-- Debug Options -->
+      <div class="control-group">
+        <label class="control-label">Debug:</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="debug-grid" /> Show Grid</label>
+          <label><input type="checkbox" id="debug-vision" /> Show Vision</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Panel -->
+  <div id="stats-panel" class="stats-panel">
+    <div class="stats-header">
+      <h3>Statistics</h3>
+      <span id="fps-display" class="fps">60 FPS</span>
+    </div>
+
+    <div class="stats-content">
+      <div class="stat-row">
+        <span>Agents:</span>
+        <span id="stat-agents">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Food:</span>
+        <span id="stat-food">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Avg Energy:</span>
+        <span id="stat-energy">0</span>
+      </div>
+      <div class="stat-row">
+        <span>Births/Deaths:</span>
+        <span id="stat-birthdeaths">0/0</span>
+      </div>
+
+      <div class="strategy-counts">
+        <div class="strategy-count aggressive">
+          <span class="count" id="count-aggressive">0</span>
+          <span class="label">Agg</span>
+        </div>
+        <div class="strategy-count passive">
+          <span class="count" id="count-passive">0</span>
+          <span class="label">Pas</span>
+        </div>
+        <div class="strategy-count cooperative">
+          <span class="count" id="count-cooperative">0</span>
+          <span class="label">Coop</span>
+        </div>
+        <div class="strategy-count titfortat">
+          <span class="count" id="count-titfortat">0</span>
+          <span class="label">TfT</span>
+        </div>
+        <div class="strategy-count random">
+          <span class="count" id="count-random">0</span>
+          <span class="label">Rnd</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart Container -->
+    <div id="chart-container" class="chart-container">
+      <canvas id="population-chart"></canvas>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+
 </html>

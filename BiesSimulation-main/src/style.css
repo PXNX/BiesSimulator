@@ -4,57 +4,434 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-tertiary: #0f3460;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent: #e94560;
+  --success: #4ade80;
+  --warning: #eab308;
+  --danger: #ef4444;
+
+  /* Strategy colors */
+  --aggressive: #ef4444;
+  --passive: #3b82f6;
+  --cooperative: #22c55e;
+  --titfortat: #eab308;
+  --random: #a855f7;
+
+  --panel-bg: rgba(22, 33, 62, 0.95);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
 html,
 body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #1a1a2e;
+  background: var(--bg-primary);
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
 }
 
 #sim-canvas {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-/* Loading state */
-.loading {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: #fff;
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  font-size: 1.2rem;
-  text-align: center;
+  top: 0;
+  left: 0;
+  z-index: 1;
 }
 
-/* Future HUD styles */
-.hud {
+/* ============ CONTROLS PANEL ============ */
+
+.controls-panel {
   position: fixed;
   top: 1rem;
   left: 1rem;
-  color: rgba(255, 255, 255, 0.8);
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
-  font-size: 0.75rem;
-  pointer-events: none;
+  width: 280px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
   z-index: 100;
+  backdrop-filter: blur(10px);
+  transition: transform 0.3s ease;
 }
 
-.hud-stat {
-  margin-bottom: 0.25rem;
+.controls-panel.collapsed {
+  transform: translateX(-250px);
 }
 
-/* Future controls panel */
-.controls {
+.controls-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.controls-header h2 {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.controls-content {
+  padding: 1rem;
+  max-height: calc(100vh - 150px);
+  overflow-y: auto;
+}
+
+.control-group {
+  margin-bottom: 1rem;
+}
+
+.control-group:last-child {
+  margin-bottom: 0;
+}
+
+.control-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Buttons */
+.btn-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover {
+  background: #d63d55;
+}
+
+.btn-danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.btn-icon {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+/* Sliders */
+input[type="range"] {
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+  appearance: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+/* Select */
+.control-select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* Strategy sliders */
+.strategy-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.strategy-label {
+  width: 70px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+
+.strategy-slider input {
+  flex: 1;
+}
+
+.ratio-value {
+  width: 35px;
+  font-size: 0.7rem;
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+.strategy-label.aggressive {
+  color: var(--aggressive);
+}
+
+.strategy-label.passive {
+  color: var(--passive);
+}
+
+.strategy-label.cooperative {
+  color: var(--cooperative);
+}
+
+.strategy-label.titfortat {
+  color: var(--titfortat);
+}
+
+.strategy-label.random {
+  color: var(--random);
+}
+
+/* Parameter sliders */
+.param-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.75rem;
+}
+
+.param-slider span:first-child {
+  width: 70px;
+  color: var(--text-secondary);
+}
+
+.param-slider input {
+  flex: 1;
+}
+
+.param-slider span:last-child {
+  width: 40px;
+  text-align: right;
+}
+
+/* Checkboxes */
+.checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+}
+
+/* ============ STATS PANEL ============ */
+
+.stats-panel {
   position: fixed;
   top: 1rem;
   right: 1rem;
-  background: rgba(26, 26, 46, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  padding: 1rem;
-  min-width: 200px;
+  width: 220px;
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
   z-index: 100;
+  backdrop-filter: blur(10px);
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.stats-header h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.fps {
+  font-size: 0.7rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--success);
+  padding: 0.2rem 0.5rem;
+  background: rgba(74, 222, 128, 0.1);
+  border-radius: 4px;
+}
+
+.stats-content {
+  padding: 0.75rem 1rem;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-bottom: 0.4rem;
+}
+
+.stat-row span:first-child {
+  color: var(--text-secondary);
+}
+
+.stat-row span:last-child {
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.strategy-counts {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.strategy-count {
+  text-align: center;
+}
+
+.strategy-count .count {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.strategy-count .label {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+}
+
+.strategy-count.aggressive .count {
+  color: var(--aggressive);
+}
+
+.strategy-count.passive .count {
+  color: var(--passive);
+}
+
+.strategy-count.cooperative .count {
+  color: var(--cooperative);
+}
+
+.strategy-count.titfortat .count {
+  color: var(--titfortat);
+}
+
+.strategy-count.random .count {
+  color: var(--random);
+}
+
+/* ============ CHART ============ */
+
+.chart-container {
+  padding: 0.75rem;
+  border-top: 1px solid var(--border-color);
+  height: 150px;
+}
+
+#population-chart {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* ============ SCROLLBAR ============ */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============ RESPONSIVE ============ */
+
+@media (max-width: 768px) {
+  .controls-panel {
+    width: 260px;
+    left: 0.5rem;
+    top: 0.5rem;
+  }
+
+  .stats-panel {
+    width: 180px;
+    right: 0.5rem;
+    top: 0.5rem;
+  }
+
+  .chart-container {
+    height: 120px;
+  }
 }

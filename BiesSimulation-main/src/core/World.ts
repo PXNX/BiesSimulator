@@ -7,6 +7,8 @@ import { Agent } from '../models/Agent';
 import { Food } from '../models/Food';
 import { MovementSystem } from '../systems/MovementSystem';
 import { InteractionSystem } from '../systems/InteractionSystem';
+import { EvolutionSystem } from '../systems/EvolutionSystem';
+import { FoodSystem } from '../systems/FoodSystem';
 import { CanvasRenderer } from '../renderer/CanvasRenderer';
 import { Sprites } from '../renderer/Sprites';
 import { SpatialGrid } from './SpatialGrid';
@@ -22,6 +24,17 @@ export interface WorldConfig {
     strategyRatios?: Record<StrategyType, number>;
 }
 
+export interface WorldStats {
+    totalAgents: number;
+    totalFood: number;
+    strategyCounts: Record<StrategyType, number>;
+    averageEnergy: number;
+    births: number;
+    deaths: number;
+    totalBirths: number;
+    totalDeaths: number;
+}
+
 export class World {
     public agents: Agent[] = [];
     public food: Food[] = [];
@@ -29,6 +42,8 @@ export class World {
     // Systems
     private movementSystem: MovementSystem;
     private interactionSystem: InteractionSystem;
+    private evolutionSystem: EvolutionSystem;
+    private foodSystem: FoodSystem;
 
     // Spatial grids for efficient lookups
     private agentGrid: SpatialGrid<Agent>;
@@ -40,6 +55,10 @@ export class World {
     // Current configuration
     private config: WorldConfig;
 
+    // Simulation state
+    private _paused: boolean = false;
+    private _timeScale: number = 1.0;
+
     constructor(config?: WorldConfig) {
         this.config = config || {
             agentCount: DEFAULT_PRESET.agentCount,
@@ -50,6 +69,8 @@ export class World {
         // Initialize systems
         this.movementSystem = new MovementSystem();
         this.interactionSystem = new InteractionSystem();
+        this.evolutionSystem = new EvolutionSystem();
+        this.foodSystem = new FoodSystem();
 
         // Initialize spatial grids
         const { width, height } = getWorldDimensions();
@@ -60,6 +81,40 @@ export class World {
         this.init();
     }
 
+    // ============ SIMULATION CONTROL ============
+
+    get paused(): boolean {
+        return this._paused;
+    }
+
+    set paused(value: boolean) {
+        this._paused = value;
+    }
+
+    get timeScale(): number {
+        return this._timeScale;
+    }
+
+    set timeScale(value: number) {
+        this._timeScale = Math.max(0.1, Math.min(5.0, value));
+    }
+
+    togglePause(): void {
+        this._paused = !this._paused;
+    }
+
+    /**
+     * Step simulation by one frame (for debugging)
+     */
+    step(): void {
+        const wasPaused = this._paused;
+        this._paused = false;
+        this.update(1 / 60);
+        this._paused = wasPaused;
+    }
+
+    // ============ INITIALIZATION ============
+
     /**
      * Initialize the world with agents and food
      */
@@ -68,6 +123,7 @@ export class World {
         this.food = [];
         this.agentGrid.clear();
         this.foodGrid.clear();
+        this.evolutionSystem.resetStats();
 
         const agentCount = this.config.agentCount || CONFIG.INITIAL_AGENT_COUNT;
         const foodCount = this.config.foodCount || CONFIG.INITIAL_FOOD_COUNT;
@@ -79,9 +135,11 @@ export class World {
             this.spawnAgent(strategyType);
         }
 
-        // Spawn initial food
-        for (let i = 0; i < foodCount; i++) {
-            this.spawnFood();
+        // Spawn initial food using FoodSystem
+        const initialFood = this.foodSystem.spawnInitialFood(foodCount);
+        for (const f of initialFood) {
+            this.food.push(f);
+            this.foodGrid.insert(f);
         }
     }
 
@@ -92,6 +150,8 @@ export class World {
         if (config) {
             this.config = config;
         }
+        this._paused = false;
+        this._timeScale = 1.0;
         this.init();
     }
 
@@ -106,6 +166,8 @@ export class World {
         };
         this.init();
     }
+
+    // ============ SPAWNING ============
 
     /**
      * Spawn an agent at a random position
@@ -175,22 +237,30 @@ export class World {
         };
     }
 
+    // ============ UPDATE ============
+
     /**
      * Update world state
      */
     update(delta: number): void {
+        // Skip if paused
+        if (this._paused) return;
+
+        // Apply time scaling
+        const scaledDelta = delta * this._timeScale;
+
         // Update spatial grids on resize
         const { width, height } = getWorldDimensions();
         this.agentGrid.resize(width, height);
         this.foodGrid.resize(width, height);
 
         // Run movement system
-        this.movementSystem.update(this.agents, delta);
+        this.movementSystem.update(this.agents, scaledDelta);
 
         // Update physics for all agents
         for (const agent of this.agents) {
             if (!agent.isDead) {
-                agent.updatePhysics(delta);
+                agent.updatePhysics(scaledDelta);
             }
         }
 
@@ -207,6 +277,27 @@ export class World {
             this.foodGrid.remove(f);
         }
 
+        // Run evolution system (reproduction, death)
+        const { newAgents, deadAgents } = this.evolutionSystem.update(this.agents);
+
+        // Add new agents
+        for (const agent of newAgents) {
+            this.agents.push(agent);
+            this.agentGrid.insert(agent);
+        }
+
+        // Remove dead agents from grid
+        for (const agent of deadAgents) {
+            this.agentGrid.remove(agent);
+        }
+
+        // Run food system (respawning)
+        const newFood = this.foodSystem.update(this.food, scaledDelta);
+        for (const f of newFood) {
+            this.food.push(f);
+            this.foodGrid.insert(f);
+        }
+
         // Clean up dead entities
         this.cleanup();
     }
@@ -216,19 +307,13 @@ export class World {
      */
     private cleanup(): void {
         // Remove dead agents
-        const deadAgents = this.agents.filter(a => a.isDead);
-        for (const agent of deadAgents) {
-            this.agentGrid.remove(agent);
-        }
         this.agents = this.agents.filter(a => !a.isDead);
 
         // Remove consumed food
-        const deadFood = this.food.filter(f => f.isDead);
-        for (const f of deadFood) {
-            this.foodGrid.remove(f);
-        }
         this.food = this.food.filter(f => !f.isDead);
     }
+
+    // ============ RENDERING ============
 
     /**
      * Render the world
@@ -245,6 +330,20 @@ export class World {
         // Draw debug grid if enabled
         if (CONFIG.SHOW_GRID) {
             renderer.drawGrid();
+        }
+
+        // Draw food hotspots if enabled
+        if (CONFIG.FOOD_HOTSPOTS_ENABLED) {
+            const hotspots = this.foodSystem.getHotspots();
+            ctx.save();
+            ctx.globalAlpha = 0.1;
+            ctx.fillStyle = CONFIG.FOOD_COLOR;
+            for (const hotspot of hotspots) {
+                ctx.beginPath();
+                ctx.arc(hotspot.position.x, hotspot.position.y, hotspot.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
         }
 
         // Draw food
@@ -266,7 +365,7 @@ export class World {
         const now = Date.now();
         for (const event of events) {
             const age = now - event.timestamp;
-            const duration = 500; // Effect duration in ms
+            const duration = 500;
             if (age < duration) {
                 const progress = age / duration;
                 this.sprites.drawInteractionEffect(
@@ -279,6 +378,8 @@ export class World {
             }
         }
     }
+
+    // ============ STATISTICS ============
 
     /**
      * Get statistics about the current world state
@@ -293,26 +394,27 @@ export class World {
         };
 
         let totalEnergy = 0;
+        let aliveCount = 0;
 
         for (const agent of this.agents) {
             if (!agent.isDead) {
                 strategyCounts[agent.strategyType]++;
                 totalEnergy += agent.energy;
+                aliveCount++;
             }
         }
 
+        const evolutionStats = this.evolutionSystem.getStats();
+
         return {
-            totalAgents: this.agents.filter(a => !a.isDead).length,
+            totalAgents: aliveCount,
             totalFood: this.food.filter(f => !f.isDead).length,
             strategyCounts,
-            averageEnergy: this.agents.length > 0 ? totalEnergy / this.agents.length : 0,
+            averageEnergy: aliveCount > 0 ? totalEnergy / aliveCount : 0,
+            births: evolutionStats.births,
+            deaths: evolutionStats.deaths,
+            totalBirths: evolutionStats.totalBirths,
+            totalDeaths: evolutionStats.totalDeaths,
         };
     }
-}
-
-export interface WorldStats {
-    totalAgents: number;
-    totalFood: number;
-    strategyCounts: Record<StrategyType, number>;
-    averageEnergy: number;
 }
