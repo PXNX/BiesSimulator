@@ -25,6 +25,8 @@ export const CONFIG = {
     CLEAR_COLOR: '#1a1a2e',
     SHOW_GRID: false,
     SHOW_DEBUG_VISION: false,
+    SHOW_TRAILS: false,
+    SHOW_HIT_EFFECTS: true,
     GRID_SIZE: 50,
     GRID_COLOR: 'rgba(255, 255, 255, 0.1)',
 
