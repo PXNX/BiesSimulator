@@ -1,32 +1,107 @@
+/**
+ * Agent - Autonomous entity with strategy, traits, and memory
+ */
+
 import { Entity } from './Entity';
 import { Vector2 } from './Vector2';
+import { DEFAULT_TRAITS, randomTraits } from './Traits';
+import type { Traits } from './Traits';
 import { CONFIG } from '../config/globalConfig';
+import type { StrategyType, ActionType } from '../config/globalConfig';
+import { getStrategy } from '../strategies/index';
+import type { IStrategy, EncounterMemory } from '../strategies/IStrategy';
 
 export class Agent extends Entity {
+    // Physics
     public velocity: Vector2;
     public acceleration: Vector2;
     public maxSpeed: number;
     public maxForce: number;
-    public energy: number;
-    // Strategy will be added in Phase 3
 
-    constructor(x: number, y: number) {
+    // Stats
+    public energy: number;
+    public age: number = 0;
+
+    // Traits
+    public traits: Traits;
+
+    // Strategy
+    public strategyType: StrategyType;
+    private _strategy: IStrategy;
+
+    // Memory for TitForTat and learning strategies
+    private encounterMemory: Map<string, EncounterMemory> = new Map();
+    private readonly maxMemorySize: number;
+
+    // Interaction state
+    public interactionCooldowns: Map<string, number> = new Map();
+    public lastInteractionTime: number = 0;
+
+    // Reproduction
+    public reproductionCooldown: number = 0;
+
+    // Wander behavior state (for smooth movement)
+    public wanderAngle: number = Math.random() * Math.PI * 2;
+
+    constructor(
+        x: number,
+        y: number,
+        strategyType?: StrategyType,
+        traits?: Partial<Traits>
+    ) {
         super(x, y);
-        this.velocity = Vector2.random().mult(CONFIG.DEFAULT_SPEED);
+
+        // Initialize traits
+        this.traits = traits
+            ? { ...DEFAULT_TRAITS, ...traits }
+            : randomTraits();
+
+        // Physics with trait modifiers
+        this.velocity = Vector2.random().mult(CONFIG.DEFAULT_SPEED * this.traits.speed);
         this.acceleration = new Vector2(0, 0);
-        this.maxSpeed = CONFIG.DEFAULT_SPEED;
+        this.maxSpeed = CONFIG.MAX_SPEED * this.traits.speed;
         this.maxForce = CONFIG.MAX_FORCE;
+
+        // Energy
         this.energy = CONFIG.STARTING_ENERGY;
+
+        // Strategy
+        this.strategyType = strategyType || 'Random';
+        this._strategy = getStrategy(this.strategyType);
+
+        // Memory
+        this.maxMemorySize = CONFIG.DEFAULT_MEMORY_SIZE;
     }
 
-    applyForce(force: Vector2) {
-        // F = m*a (assuming mass = 1 for simplicity)
+    get strategy(): IStrategy {
+        return this._strategy;
+    }
+
+    get visionRadius(): number {
+        return CONFIG.VISION_RADIUS * this.traits.vision;
+    }
+
+    /**
+     * Apply a force to the agent
+     */
+    applyForce(force: Vector2): void {
         this.acceleration.add(force);
     }
 
-    updatePhysics(delta: number) {
+    /**
+     * Update physics each frame
+     */
+    updatePhysics(delta: number): void {
+        // Clamp acceleration
+        this.acceleration.limit(this.maxForce);
+
         // Update velocity
         this.velocity.add(this.acceleration.copy().mult(delta));
+
+        // Apply friction/damping
+        this.velocity.mult(CONFIG.FRICTION);
+
+        // Limit speed
         this.velocity.limit(this.maxSpeed);
 
         // Update position
@@ -34,5 +109,162 @@ export class Agent extends Entity {
 
         // Reset acceleration
         this.acceleration.mult(0);
+
+        // Age
+        this.age += delta;
+
+        // Decrease cooldowns
+        if (this.reproductionCooldown > 0) {
+            this.reproductionCooldown -= delta;
+        }
+
+        // Decay interaction cooldowns
+        for (const [id, cooldown] of this.interactionCooldowns) {
+            const newCooldown = cooldown - 1;
+            if (newCooldown <= 0) {
+                this.interactionCooldowns.delete(id);
+            } else {
+                this.interactionCooldowns.set(id, newCooldown);
+            }
+        }
+    }
+
+    /**
+     * Consume energy for movement
+     */
+    drainMovementEnergy(): void {
+        const speed = this.velocity.mag();
+        const cost = speed * CONFIG.MOVEMENT_COST_FACTOR * (1 / this.traits.stamina);
+        this.energy -= cost;
+    }
+
+    /**
+     * Consume base tick energy
+     */
+    drainBaseEnergy(): void {
+        this.energy -= CONFIG.BASE_TICK_COST * (1 / this.traits.stamina);
+    }
+
+    /**
+     * Gain energy from food
+     */
+    gainEnergy(amount: number): void {
+        this.energy = Math.min(this.energy + amount, CONFIG.MAX_ENERGY);
+    }
+
+    /**
+     * Lose energy from fighting
+     */
+    loseEnergy(amount: number): void {
+        this.energy -= amount;
+        if (this.energy <= 0) {
+            this.isDead = true;
+        }
+    }
+
+    /**
+     * Decide action against another agent
+     */
+    decideAction(other: Agent): ActionType {
+        const memory = this.encounterMemory.get(other.id);
+        return this._strategy.decideAction(this, other, memory);
+    }
+
+    /**
+     * Remember an encounter with another agent
+     */
+    rememberEncounter(
+        agentId: string,
+        action: ActionType,
+        outcome: 'won' | 'lost' | 'tie' | 'fled'
+    ): void {
+        // Remove oldest memory if at capacity
+        if (this.encounterMemory.size >= this.maxMemorySize) {
+            let oldestId: string | null = null;
+            let oldestTime = Infinity;
+
+            for (const [id, mem] of this.encounterMemory) {
+                if (mem.timestamp < oldestTime) {
+                    oldestTime = mem.timestamp;
+                    oldestId = id;
+                }
+            }
+
+            if (oldestId) {
+                this.encounterMemory.delete(oldestId);
+            }
+        }
+
+        this.encounterMemory.set(agentId, {
+            agentId,
+            lastAction: action,
+            timestamp: Date.now(),
+            outcome,
+        });
+    }
+
+    /**
+     * Get memory of a specific agent
+     */
+    getMemory(agentId: string): EncounterMemory | undefined {
+        return this.encounterMemory.get(agentId);
+    }
+
+    /**
+     * Check if on cooldown with another agent
+     */
+    isOnCooldown(otherId: string): boolean {
+        return this.interactionCooldowns.has(otherId);
+    }
+
+    /**
+     * Set interaction cooldown with another agent
+     */
+    setCooldown(otherId: string): void {
+        this.interactionCooldowns.set(otherId, CONFIG.INTERACTION_COOLDOWN);
+    }
+
+    /**
+     * Apply knockback force
+     */
+    applyKnockback(direction: Vector2, force: number): void {
+        const knockback = direction.copy().normalize().mult(force);
+        this.velocity.add(knockback);
+    }
+
+    /**
+     * Check if agent can reproduce
+     */
+    canReproduce(): boolean {
+        return (
+            this.energy >= CONFIG.REPRODUCTION_COST * 1.5 &&
+            this.reproductionCooldown <= 0 &&
+            !this.isDead
+        );
+    }
+
+    /**
+     * Create child agent nearby
+     */
+    reproduce(): Agent | null {
+        if (!this.canReproduce()) return null;
+
+        // Energy cost
+        this.energy -= CONFIG.REPRODUCTION_COST;
+        this.reproductionCooldown = 5; // 5 seconds cooldown
+
+        // Spawn position nearby
+        const offset = Vector2.random().mult(20 + Math.random() * 30);
+        const childPos = this.position.copy().add(offset);
+
+        // Create child with inherited traits (potentially mutated)
+        const child = new Agent(
+            childPos.x,
+            childPos.y,
+            this.strategyType, // Inherit strategy
+            this.traits // Inherit traits (mutation happens in constructor if needed)
+        );
+
+        return child;
     }
 }
