@@ -11,6 +11,7 @@ import type { StrategyType, ActionType } from '../config/globalConfig';
 import { getStrategy } from '../strategies/index';
 import type { IStrategy, EncounterMemory } from '../strategies/IStrategy';
 import { random } from '../utils/RNG';
+import { withPooledVector } from '../utils/ObjectPool';
 
 export class Agent extends Entity {
     // Physics
@@ -232,8 +233,10 @@ export class Agent extends Entity {
      * Apply knockback force
      */
     applyKnockback(direction: Vector2, force: number): void {
-        const knockback = direction.copy().normalize().mult(force);
-        this.velocity.add(knockback);
+        withPooledVector((knockback) => {
+            knockback.set(direction.x, direction.y).normalize().mult(force);
+            this.velocity.add(knockback);
+        });
     }
 
     /**

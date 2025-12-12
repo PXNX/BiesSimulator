@@ -9,12 +9,12 @@ import { Food } from '../models/Food';
 import { CONFIG } from '../config/globalConfig';
 import type { ActionType } from '../config/globalConfig';
 import { SpatialGrid } from '../core/SpatialGrid';
-import { Vector2 } from '../models/Vector2';
 import type { EncounterResult } from '../strategies/IStrategy';
+import { withPooledVector } from '../utils/ObjectPool';
 
 export interface InteractionEvent {
     type: 'fight' | 'share' | 'consume' | 'flee';
-    position: Vector2;
+    position: { x: number; y: number };
     agents: string[];
     timestamp: number;
 }
@@ -68,7 +68,7 @@ export class InteractionSystem {
 
                     this.addEvent({
                         type: 'consume',
-                        position: f.position.copy(),
+                        position: { x: f.position.x, y: f.position.y },
                         agents: [agent.id],
                         timestamp: Date.now(),
                     });
@@ -128,32 +128,46 @@ export class InteractionSystem {
 
         // Apply knockback for fights
         if (action1 === 'FIGHT' || action2 === 'FIGHT') {
-            const direction = Vector2.subtract(agent2.position, agent1.position).normalize();
+            const dx = agent2.position.x - agent1.position.x;
+            const dy = agent2.position.y - agent1.position.y;
 
-            if (action1 === 'FIGHT') {
-                agent2.applyKnockback(direction, CONFIG.KNOCKBACK_FORCE);
-            }
-            if (action2 === 'FIGHT') {
-                agent1.applyKnockback(direction.copy().mult(-1), CONFIG.KNOCKBACK_FORCE);
-            }
+            withPooledVector((direction) => {
+                direction.set(dx, dy).normalize();
+
+                if (action1 === 'FIGHT') {
+                    agent2.applyKnockback(direction, CONFIG.KNOCKBACK_FORCE);
+                }
+                if (action2 === 'FIGHT') {
+                    agent1.applyKnockback(direction, -CONFIG.KNOCKBACK_FORCE);
+                }
+            });
 
             this.addEvent({
                 type: 'fight',
-                position: Vector2.add(agent1.position, agent2.position).div(2),
+                position: {
+                    x: (agent1.position.x + agent2.position.x) / 2,
+                    y: (agent1.position.y + agent2.position.y) / 2,
+                },
                 agents: [agent1.id, agent2.id],
                 timestamp: Date.now(),
             });
         } else if (action1 === 'SHARE' && action2 === 'SHARE') {
             this.addEvent({
                 type: 'share',
-                position: Vector2.add(agent1.position, agent2.position).div(2),
+                position: {
+                    x: (agent1.position.x + agent2.position.x) / 2,
+                    y: (agent1.position.y + agent2.position.y) / 2,
+                },
                 agents: [agent1.id, agent2.id],
                 timestamp: Date.now(),
             });
         } else if (action1 === 'FLEE' || action2 === 'FLEE') {
             this.addEvent({
                 type: 'flee',
-                position: Vector2.add(agent1.position, agent2.position).div(2),
+                position: {
+                    x: (agent1.position.x + agent2.position.x) / 2,
+                    y: (agent1.position.y + agent2.position.y) / 2,
+                },
                 agents: [agent1.id, agent2.id],
                 timestamp: Date.now(),
             });

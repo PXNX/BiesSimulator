@@ -150,6 +150,9 @@ export class MovementSystem {
 
     /**
      * Seek behavior - steer towards a target position
+     *
+     * NOTE: This method allocates a new `Vector2`. Prefer `seekInto(...)` in hot paths.
+     *
      * @returns Steering force vector
      */
     seek(agent: Agent, target: Vector2): Vector2 {
@@ -157,7 +160,10 @@ export class MovementSystem {
         return this.seekInto(agent, target, out);
     }
 
-    private seekInto(agent: Agent, target: Vector2, out: Vector2): Vector2 {
+    /**
+     * Allocation-free variant of `seek(...)`.
+     */
+    public seekInto(agent: Agent, target: Vector2, out: Vector2): Vector2 {
         out.set(target.x - agent.position.x, target.y - agent.position.y);
         const distance = out.mag();
         if (distance < 0.01) {
@@ -173,6 +179,9 @@ export class MovementSystem {
 
     /**
      * Flee behavior - steer away from a threat
+     *
+     * NOTE: This method allocates a new `Vector2`. Prefer `fleeInto(...)` in hot paths.
+     *
      * @returns Steering force vector
      */
     flee(agent: Agent, threat: Vector2): Vector2 {
@@ -180,7 +189,10 @@ export class MovementSystem {
         return this.fleeInto(agent, threat, out);
     }
 
-    private fleeInto(agent: Agent, threat: Vector2, out: Vector2): Vector2 {
+    /**
+     * Allocation-free variant of `flee(...)`.
+     */
+    public fleeInto(agent: Agent, threat: Vector2, out: Vector2): Vector2 {
         out.set(agent.position.x - threat.x, agent.position.y - threat.y);
         const distance = out.mag();
 
@@ -198,6 +210,9 @@ export class MovementSystem {
 
     /**
      * Arrive behavior - approach target and slow down as it gets close
+     *
+     * NOTE: This method allocates a new `Vector2`. Prefer `arriveInto(...)` in hot paths.
+     *
      * @returns Steering force vector
      */
     arrive(agent: Agent, target: Vector2, slowRadius: number = 50): Vector2 {
@@ -205,7 +220,10 @@ export class MovementSystem {
         return this.arriveInto(agent, target, slowRadius, out);
     }
 
-    private arriveInto(
+    /**
+     * Allocation-free variant of `arrive(...)`.
+     */
+    public arriveInto(
         agent: Agent,
         target: Vector2,
         slowRadius: number,
@@ -231,6 +249,9 @@ export class MovementSystem {
 
     /**
      * Separation behavior - avoid crowding nearby agents
+     *
+     * NOTE: This method allocates a new `Vector2`. Prefer `separateInto(...)` in hot paths.
+     *
      * @returns Steering force vector
      */
     separate(agent: Agent, neighbors: Agent[], separationRadius: number = 25): Vector2 {
@@ -238,7 +259,10 @@ export class MovementSystem {
         return this.separateInto(agent, neighbors, separationRadius, out);
     }
 
-    private separateInto(
+    /**
+     * Allocation-free variant of `separate(...)`.
+     */
+    public separateInto(
         agent: Agent,
         neighbors: Agent[],
         separationRadius: number,
