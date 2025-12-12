@@ -169,10 +169,10 @@ export class Controls {
 
         // Expert / Guide
         const expertLocal = localStorage.getItem('bies-expert-mode');
-        if (expertLocal === '1') {
-            this.setExpertMode(true);
+        if (expertLocal === '0') {
+            this.setExpertMode(false);
         } else {
-            document.body.classList.add('advanced-hidden');
+            this.setExpertMode(true); // default: alles sichtbar
         }
         this.expertToggleBtn?.addEventListener('click', () => this.toggleExpertMode());
         this.expertIconBtn?.addEventListener('click', () => this.toggleExpertMode());
@@ -388,7 +388,7 @@ export class Controls {
         if (enabled) {
             localStorage.setItem('bies-expert-mode', '1');
         } else {
-            localStorage.removeItem('bies-expert-mode');
+            localStorage.setItem('bies-expert-mode', '0');
         }
         if (this.expertToggleBtn) {
             this.expertToggleBtn.textContent = enabled ? 'Expert: ON' : 'Expert Mode';

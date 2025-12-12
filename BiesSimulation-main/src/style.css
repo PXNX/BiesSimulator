@@ -166,7 +166,7 @@ body::after {
 }
 
 .controls-panel.collapsed {
-  transform: translateX(-260px);
+  transform: translateX(-70%);
 }
 
 .controls-header {
