@@ -96,7 +96,7 @@ export class PerformanceMonitor {
         if ('memory' in performance) {
             const memory = (performance as any).memory;
             const usedMB = memory.usedJSHeapSize / 1048576;
-            const totalMB = memory.totalJSHeapSize / 1048576;
+            // const totalMB = memory.totalJSHeapSize / 1048576;
             const limitMB = memory.jsHeapSizeLimit / 1048576;
 
             // Log if memory is high

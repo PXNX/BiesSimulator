@@ -52,7 +52,7 @@ export class Controls {
     private foodValueValue: HTMLElement;
     private boundarySelect: HTMLSelectElement;
     private boundaryValue: HTMLElement;
-    private advancedSections: NodeListOf<HTMLElement>;
+    // private advancedSections: NodeListOf<HTMLElement>;
     private expertMode: boolean = false;
 
     // Strategy ratio elements
@@ -99,7 +99,7 @@ export class Controls {
         this.foodValueValue = document.getElementById('param-foodvalue-val')!;
         this.boundarySelect = document.getElementById('param-boundarymode') as HTMLSelectElement;
         this.boundaryValue = document.getElementById('param-boundarymode-val')!;
-        this.advancedSections = document.querySelectorAll('.advanced-section');
+        // this.advancedSections = document.querySelectorAll('.advanced-section');
 
         this.payoffInputs = this.getPayoffInputBindings().map(({ id, key, idx }) => ({
             key,

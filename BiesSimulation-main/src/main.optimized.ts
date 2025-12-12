@@ -132,11 +132,11 @@ const render = () => {
     // Update quality based on FPS
     if (currentFPS < 40) {
         fastRenderer.setQualityLevel(0.6);
-        CONFIG.SHOW_TRAILS = false;
-        CONFIG.SHOW_HIT_EFFECTS = false;
+        (CONFIG as any).SHOW_TRAILS = false;
+        (CONFIG as any).SHOW_HIT_EFFECTS = false;
     } else if (currentFPS < 50) {
         fastRenderer.setQualityLevel(0.8);
-        CONFIG.SHOW_HIT_EFFECTS = true;
+        (CONFIG as any).SHOW_HIT_EFFECTS = true;
     } else {
         fastRenderer.setQualityLevel(1.0);
     }
@@ -204,8 +204,8 @@ window.addEventListener('keydown', (e) => {
     }
     // Toggle performance mode with 'P' key
     if (e.key.toLowerCase() === 'p') {
-        CONFIG.SHOW_TRAILS = !CONFIG.SHOW_TRAILS;
-        CONFIG.SHOW_HIT_EFFECTS = !CONFIG.SHOW_HIT_EFFECTS;
+        (CONFIG as any).SHOW_TRAILS = !CONFIG.SHOW_TRAILS;
+        (CONFIG as any).SHOW_HIT_EFFECTS = !CONFIG.SHOW_HIT_EFFECTS;
         console.log('Performance mode:', CONFIG.SHOW_TRAILS ? 'High Quality' : 'High Performance');
     }
 });

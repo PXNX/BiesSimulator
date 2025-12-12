@@ -4,7 +4,6 @@
  */
 
 import type { Agent } from '../models/Agent';
-import type { Food } from '../models/Food';
 import { CONFIG } from '../config/globalConfig';
 
 export class WorldOptimizer {

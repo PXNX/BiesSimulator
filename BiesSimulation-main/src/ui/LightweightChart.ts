@@ -22,7 +22,7 @@ interface DataPoint {
 export class LightweightChart {
     private world: World;
     private canvas: HTMLCanvasElement;
-    private ctx: CanvasRenderingContext2D;
+    private ctx: CanvasRenderingContext2D | null = null;
     private dataPoints: DataPoint[] = [];
     private maxDataPoints: number = 60;
     private sampleInterval: number = 500;
@@ -51,7 +51,7 @@ export class LightweightChart {
     }
 
     private resize(): void {
-        if (!this.canvas) return;
+        if (!this.canvas || !this.ctx) return;
 
         const parent = this.canvas.parentElement;
         if (!parent) return;

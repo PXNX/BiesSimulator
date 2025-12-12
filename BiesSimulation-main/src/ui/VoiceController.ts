@@ -22,7 +22,7 @@ export class VoiceController {
         this.recognition.lang = 'en-US';
         this.recognition.continuous = true;
         this.recognition.interimResults = false;
-        this.recognition.onresult = (ev) => this.handle(ev);
+        this.recognition.onresult = (ev: any) => this.handle(ev);
         this.recognition.onerror = () => this.stop();
     }
 
@@ -51,8 +51,8 @@ export class VoiceController {
     }
 
     private handle(event: any): void {
-        const transcript = Array.from(event.results)
-            .map(r => r[0].transcript)
+        const transcript = Array.from(event.results as ArrayLike<any>)
+            .map((r: any) => r[0].transcript)
             .join(' ')
             .toLowerCase();
 

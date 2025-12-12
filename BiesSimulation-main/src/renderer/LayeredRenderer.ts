@@ -3,7 +3,7 @@
  * Separates static background, dynamic entities, and effects into layers
  */
 
-import { CONFIG, getWorldDimensions } from '../config/globalConfig';
+import { getWorldDimensions } from '../config/globalConfig';
 
 export interface Layer {
     canvas: HTMLCanvasElement;
