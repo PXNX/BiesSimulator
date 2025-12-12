@@ -7,6 +7,7 @@ import { Agent } from '../models/Agent';
 import { Food } from '../models/Food';
 import { MovementSystem } from '../systems/MovementSystem';
 import { InteractionSystem } from '../systems/InteractionSystem';
+import type { InteractionHeatmap } from '../systems/InteractionSystem';
 import { EvolutionSystem } from '../systems/EvolutionSystem';
 import { FoodSystem } from '../systems/FoodSystem';
 import { CanvasRenderer } from '../renderer/CanvasRenderer';
@@ -20,6 +21,7 @@ import { DEFAULT_PRESET } from '../config/presets';
 import type { SimulationPreset } from '../config/presets';
 import { randomRange, setSeed } from '../utils/RNG';
 import { ObjectPool } from '../utils/ObjectPool';
+import { runtimeConfig } from '../config/runtimeConfig';
 
 export interface WorldConfig {
     agentCount?: number;
@@ -42,6 +44,8 @@ export interface WorldStats {
 export class World {
     public agents: Agent[] = [];
     public food: Food[] = [];
+    public tick: number = 0;
+    public selectedAgentId: string | null = null;
 
     // Systems
     private movementSystem: MovementSystem;
@@ -54,6 +58,7 @@ export class World {
     private foodGrid: SpatialGrid<Food>;
     private lastWorldWidth: number;
     private lastWorldHeight: number;
+    private lastGridCellSize: number;
 
     // Renderer helper
     private sprites: Sprites | null = null;
@@ -118,6 +123,7 @@ export class World {
         this.foodGrid = new SpatialGrid<Food>(width, height, cellSize);
         this.lastWorldWidth = width;
         this.lastWorldHeight = height;
+        this.lastGridCellSize = cellSize;
 
         this.init();
     }
@@ -160,6 +166,8 @@ export class World {
      * Initialize the world with agents and food
      */
     init(): void {
+        this.tick = 0;
+        this.selectedAgentId = null;
         // Clear lingering visual effects/trails to avoid reset artifacts
         this.effects.clear();
 
@@ -176,6 +184,8 @@ export class World {
         this.agentGrid.clear();
         this.foodGrid.clear();
         this.evolutionSystem.resetStats();
+        this.interactionSystem.resetStats();
+        this.ensureGridCellSize();
 
         const { width, height } = getWorldDimensions();
         const area = width * height;
@@ -240,7 +250,7 @@ export class World {
             (CONFIG as any).BOUNDARY_MODE = preset.boundaryMode;
         }
         if (preset.foodValue != null) {
-            (CONFIG as any).FOOD_VALUE = preset.foodValue;
+            runtimeConfig.FOOD_VALUE = preset.foodValue;
         }
         if (preset.mutationChance != null) {
             (CONFIG as any).MUTATION_CHANCE = preset.mutationChance;
@@ -356,6 +366,7 @@ export class World {
 
         // Apply time scaling
         const scaledDelta = delta * this._timeScale;
+        this.tick += 1;
 
         // Update spatial grids only when world size changes
         const { width, height } = getWorldDimensions();
@@ -366,6 +377,7 @@ export class World {
             this.lastWorldWidth = width;
             this.lastWorldHeight = height;
         }
+        this.ensureGridCellSize();
 
         // Run movement system
         this.movementSystem.update(
@@ -393,6 +405,7 @@ export class World {
 
         // Run interaction system
         const { removedFood, events } = this.interactionSystem.update(
+            this.tick,
             this.agents,
             this.food,
             this.agentGrid,
@@ -520,6 +533,18 @@ export class World {
             }
         }
 
+        // Highlight selected agent (UI helper)
+        const selected = this.getSelectedAgent();
+        if (selected) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(selected.position.x, selected.position.y, CONFIG.AGENT_SIZE + 8, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.restore();
+        }
+
         // Render trails/effects last (visual polish)
         this.effects.showTrails = CONFIG.SHOW_TRAILS;
         this.effects.showHitEffects = CONFIG.SHOW_HIT_EFFECTS;
@@ -563,5 +588,39 @@ export class World {
             totalBirths: evolutionStats.totalBirths,
             totalDeaths: evolutionStats.totalDeaths,
         };
+    }
+
+    private ensureGridCellSize(): void {
+        const desired = CONFIG.VISION_RADIUS;
+        if (desired === this.lastGridCellSize) return;
+
+        const { width, height } = getWorldDimensions();
+        this.agentGrid = new SpatialGrid<Agent>(width, height, desired);
+        this.foodGrid = new SpatialGrid<Food>(width, height, desired);
+        this.lastGridCellSize = desired;
+
+        for (const agent of this.agents) {
+            if (!agent.isDead) this.agentGrid.insert(agent);
+        }
+        for (const f of this.food) {
+            if (!f.isDead) this.foodGrid.insert(f);
+        }
+    }
+
+    getSelectedAgent(): Agent | null {
+        if (!this.selectedAgentId) return null;
+        return this.agents.find(a => !a.isDead && a.id === this.selectedAgentId) || null;
+    }
+
+    selectAgent(id: string | null): void {
+        this.selectedAgentId = id;
+    }
+
+    getConfig(): WorldConfig {
+        return { ...this.config };
+    }
+
+    getInteractionHeatmap(): InteractionHeatmap {
+        return this.interactionSystem.getHeatmap();
     }
 }

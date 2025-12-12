@@ -51,6 +51,6 @@ export class TitForTat extends BaseStrategy {
 
     onEncounterResult(self: Agent, other: Agent, result: EncounterResult): void {
         // Always remember what they did
-        self.rememberEncounter(other.id, result.theirAction, result.outcome);
+        self.rememberEncounter(other.id, result.theirAction, result.outcome, result.tick);
     }
 }

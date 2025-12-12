@@ -51,8 +51,7 @@ describe('Strategies', () => {
         expect(tft.decideAction(hawk)).toBe('SHARE');
 
         // Remember hawk fought last time.
-        tft.rememberEncounter(hawk.id, 'FIGHT', 'lost');
+        tft.rememberEncounter(hawk.id, 'FIGHT', 'lost', 1);
         expect(tft.decideAction(hawk)).toBe('FIGHT');
     });
 });
-

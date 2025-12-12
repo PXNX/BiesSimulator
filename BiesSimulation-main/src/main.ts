@@ -6,6 +6,8 @@ import { PRESETS } from './config/presets';
 import { Controls } from './ui/Controls';
 import { StatsDisplay } from './ui/StatsDisplay';
 import { StatsChart } from './ui/StatsChart';
+import { AgentInspector } from './ui/AgentInspector';
+import { AnalysisDisplay } from './ui/AnalysisDisplay';
 import { rng, setSeed, getSeed } from './utils/RNG';
 
 // Initialize renderer (this sets world dimensions)
@@ -22,6 +24,8 @@ const world = new World({
 const statsChart = new StatsChart(world);
 const controls = new Controls(world, statsChart);
 const statsDisplay = new StatsDisplay(world);
+const agentInspector = new AgentInspector(world);
+const analysisDisplay = new AnalysisDisplay(world);
 
 const update = (delta: number) => {
   world.update(delta);
@@ -31,6 +35,8 @@ const render = () => {
   world.render(renderer);
   statsDisplay.update();
   statsChart.update();
+  agentInspector.update();
+  analysisDisplay.update();
 };
 
 const gameLoop = new GameLoop(update, render);

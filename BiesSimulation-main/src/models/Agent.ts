@@ -181,7 +181,8 @@ export class Agent extends Entity {
     rememberEncounter(
         agentId: string,
         action: ActionType,
-        outcome: 'won' | 'lost' | 'tie' | 'fled'
+        outcome: 'won' | 'lost' | 'tie' | 'fled',
+        tick: number
     ): void {
         // Remove oldest memory if at capacity
         if (this.encounterMemory.size >= this.maxMemorySize) {
@@ -203,7 +204,7 @@ export class Agent extends Entity {
         this.encounterMemory.set(agentId, {
             agentId,
             lastAction: action,
-            timestamp: Date.now(),
+            timestamp: tick,
             outcome,
         });
     }
@@ -213,6 +214,15 @@ export class Agent extends Entity {
      */
     getMemory(agentId: string): EncounterMemory | undefined {
         return this.encounterMemory.get(agentId);
+    }
+
+    /**
+     * Get most recent encounter memories (newest first).
+     */
+    getRecentEncounters(limit: number = 5): EncounterMemory[] {
+        const items = Array.from(this.encounterMemory.values());
+        items.sort((a, b) => b.timestamp - a.timestamp);
+        return items.slice(0, Math.max(0, limit));
     }
 
     /**

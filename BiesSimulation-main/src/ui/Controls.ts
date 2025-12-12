@@ -6,6 +6,9 @@ import { World } from '../core/World';
 import { PRESETS } from '../config/presets';
 import { CONFIG } from '../config/globalConfig';
 import type { StrategyType } from '../config/globalConfig';
+import { getSeed } from '../utils/RNG';
+import { resetRuntimeConfig, runtimeConfig } from '../config/runtimeConfig';
+import type { PayoffKey } from '../config/runtimeConfig';
 
 export class Controls {
     private world: World;
@@ -21,6 +24,16 @@ export class Controls {
     private speedSlider: HTMLInputElement;
     private speedValue: HTMLElement;
     private presetSelect: HTMLSelectElement;
+    private seedInput: HTMLInputElement;
+    private seedCopyBtn: HTMLButtonElement;
+    private configCopyBtn: HTMLButtonElement;
+    private configPasteBtn: HTMLButtonElement;
+    private configText: HTMLTextAreaElement;
+    private configStatus: HTMLElement;
+    private ruleFightCostInput: HTMLInputElement;
+    private ruleFoodValueInput: HTMLInputElement;
+    private ruleResetBtn: HTMLButtonElement;
+    private payoffInputs: Array<{ key: PayoffKey; idx: 0 | 1; el: HTMLInputElement }> = [];
 
     // Parameter controls
     private foodRateSlider: HTMLInputElement;
@@ -53,6 +66,15 @@ export class Controls {
         this.speedSlider = document.getElementById('speed-slider') as HTMLInputElement;
         this.speedValue = document.getElementById('speed-value')!;
         this.presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
+        this.seedInput = document.getElementById('seed-input') as HTMLInputElement;
+        this.seedCopyBtn = document.getElementById('seed-copy') as HTMLButtonElement;
+        this.configCopyBtn = document.getElementById('config-copy') as HTMLButtonElement;
+        this.configPasteBtn = document.getElementById('config-paste') as HTMLButtonElement;
+        this.configText = document.getElementById('config-text') as HTMLTextAreaElement;
+        this.configStatus = document.getElementById('config-status')!;
+        this.ruleFightCostInput = document.getElementById('rule-fight-cost') as HTMLInputElement;
+        this.ruleFoodValueInput = document.getElementById('rule-food-value') as HTMLInputElement;
+        this.ruleResetBtn = document.getElementById('rule-reset') as HTMLButtonElement;
 
         // Parameter elements
         this.foodRateSlider = document.getElementById('param-foodrate') as HTMLInputElement;
@@ -67,6 +89,12 @@ export class Controls {
         this.foodValueValue = document.getElementById('param-foodvalue-val')!;
         this.boundarySelect = document.getElementById('param-boundarymode') as HTMLSelectElement;
         this.boundaryValue = document.getElementById('param-boundarymode-val')!;
+
+        this.payoffInputs = this.getPayoffInputBindings().map(({ id, key, idx }) => ({
+            key,
+            idx,
+            el: document.getElementById(id) as HTMLInputElement,
+        }));
 
         // Initialize strategy sliders
         const strategies: StrategyType[] = ['Aggressive', 'Passive', 'Cooperative', 'TitForTat', 'Random'];
@@ -84,6 +112,8 @@ export class Controls {
 
         this.setupEventListeners();
         this.syncParameterUIFromConfig();
+        this.syncSeedUIFromRng();
+        this.syncGameRulesUIFromRuntimeConfig();
         this.updateUI();
     }
 
@@ -118,9 +148,11 @@ export class Controls {
                 agentCount: CONFIG.INITIAL_AGENT_COUNT,
                 foodCount: CONFIG.INITIAL_FOOD_COUNT,
                 strategyRatios: ratios,
+                seed: this.parseSeed(this.seedInput.value) ?? getSeed(),
             });
             this.chart?.reset();
             this.syncParameterUIFromConfig();
+            this.syncSeedUIFromRng();
             this.updateUI();
         });
 
@@ -140,7 +172,47 @@ export class Controls {
                 this.updateRatioSliders(preset.strategyRatios);
                 this.chart?.reset();
                 this.syncParameterUIFromConfig();
+                this.syncSeedUIFromRng();
+                this.syncGameRulesUIFromRuntimeConfig();
                 this.updateUI();
+            }
+        });
+
+        // Seed input + copy
+        this.seedInput.addEventListener('blur', () => {
+            if (this.seedInput.value.trim() === '') {
+                this.syncSeedUIFromRng();
+            }
+        });
+
+        this.seedCopyBtn.addEventListener('click', async () => {
+            const value = this.seedInput.value.trim();
+            if (!value) return;
+            await this.copyToClipboard(value);
+        });
+
+        // Config export/import
+        this.configCopyBtn.addEventListener('click', async () => {
+            const json = JSON.stringify(this.buildExportConfig(), null, 2);
+            this.configText.value = json;
+            await this.copyToClipboard(json);
+            this.setStatus('Config copied to clipboard.');
+        });
+
+        this.configPasteBtn.addEventListener('click', async () => {
+            const text = await this.readClipboardTextOrTextarea();
+            if (!text.trim()) {
+                this.setStatus('No config found (clipboard/textarea empty).');
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(text);
+                this.applyImportedConfig(parsed);
+                this.setStatus('Config applied.');
+            } catch (err) {
+                console.error('Failed to import config', err);
+                this.setStatus('Invalid config JSON.');
             }
         });
 
@@ -182,8 +254,7 @@ export class Controls {
 
         this.foodValueSlider.addEventListener('input', () => {
             const value = Math.round(parseFloat(this.foodValueSlider.value));
-            (CONFIG as any).FOOD_VALUE = value;
-            this.foodValueValue.textContent = `${value}`;
+            this.setFoodValue(value);
         });
 
         this.boundarySelect.addEventListener('change', () => {
@@ -211,6 +282,35 @@ export class Controls {
 
         document.getElementById('debug-effects')?.addEventListener('change', (e) => {
             (CONFIG as any).SHOW_HIT_EFFECTS = (e.target as HTMLInputElement).checked;
+        });
+
+        // Game rules
+        this.ruleFightCostInput.addEventListener('input', () => {
+            const value = Number.parseInt(this.ruleFightCostInput.value, 10);
+            if (!Number.isFinite(value)) return;
+            runtimeConfig.FIGHT_COST = Math.max(0, value);
+            this.ruleFightCostInput.value = `${runtimeConfig.FIGHT_COST}`;
+        });
+
+        this.ruleFoodValueInput.addEventListener('input', () => {
+            const value = Number.parseInt(this.ruleFoodValueInput.value, 10);
+            if (!Number.isFinite(value)) return;
+            this.setFoodValue(value);
+        });
+
+        for (const binding of this.payoffInputs) {
+            binding.el.addEventListener('input', () => {
+                const value = Number.parseInt(binding.el.value, 10);
+                if (!Number.isFinite(value)) return;
+                runtimeConfig.PAYOFF[binding.key][binding.idx] = value;
+                binding.el.value = `${runtimeConfig.PAYOFF[binding.key][binding.idx]}`;
+            });
+        }
+
+        this.ruleResetBtn.addEventListener('click', () => {
+            resetRuntimeConfig();
+            this.syncParameterUIFromConfig();
+            this.syncGameRulesUIFromRuntimeConfig();
         });
     }
 
@@ -263,11 +363,24 @@ export class Controls {
         this.visionSlider.value = CONFIG.VISION_RADIUS.toString();
         this.visionValue.textContent = `${CONFIG.VISION_RADIUS}px`;
 
-        this.foodValueSlider.value = CONFIG.FOOD_VALUE.toString();
-        this.foodValueValue.textContent = `${CONFIG.FOOD_VALUE}`;
+        this.foodValueSlider.value = `${this.clampRangeValue(this.foodValueSlider, runtimeConfig.FOOD_VALUE)}`;
+        this.foodValueValue.textContent = `${runtimeConfig.FOOD_VALUE}`;
 
         this.boundarySelect.value = CONFIG.BOUNDARY_MODE;
         this.boundaryValue.textContent = CONFIG.BOUNDARY_MODE;
+    }
+
+    private syncGameRulesUIFromRuntimeConfig(): void {
+        this.ruleFightCostInput.value = `${runtimeConfig.FIGHT_COST}`;
+        this.ruleFoodValueInput.value = `${runtimeConfig.FOOD_VALUE}`;
+
+        for (const binding of this.payoffInputs) {
+            binding.el.value = `${runtimeConfig.PAYOFF[binding.key][binding.idx]}`;
+        }
+    }
+
+    private syncSeedUIFromRng(): void {
+        this.seedInput.value = `${getSeed()}`;
     }
 
     private updateUI(): void {
@@ -278,5 +391,192 @@ export class Controls {
         // Update speed
         this.speedSlider.value = this.world.timeScale.toString();
         this.speedValue.textContent = `${this.world.timeScale.toFixed(1)}x`;
+    }
+
+    private setFoodValue(value: number): void {
+        const next = Math.max(0, Math.round(value));
+        runtimeConfig.FOOD_VALUE = next;
+        this.foodValueValue.textContent = `${runtimeConfig.FOOD_VALUE}`;
+        this.ruleFoodValueInput.value = `${runtimeConfig.FOOD_VALUE}`;
+        this.foodValueSlider.value = `${this.clampRangeValue(this.foodValueSlider, runtimeConfig.FOOD_VALUE)}`;
+    }
+
+    private clampRangeValue(input: HTMLInputElement, value: number): number {
+        const min = Number.parseFloat(input.min || '0');
+        const max = Number.parseFloat(input.max || `${value}`);
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private parseSeed(raw: string): number | string | undefined {
+        const value = raw.trim();
+        if (!value) return undefined;
+
+        if (/^-?\d+$/.test(value)) {
+            const n = Number.parseInt(value, 10);
+            if (Number.isFinite(n)) return n;
+        }
+
+        return value;
+    }
+
+    private async copyToClipboard(text: string): Promise<void> {
+        if (navigator.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
+        }
+
+        const el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        document.execCommand('copy');
+        el.remove();
+    }
+
+    private async readClipboardTextOrTextarea(): Promise<string> {
+        if (navigator.clipboard?.readText) {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && text.trim()) return text;
+            } catch {
+                // ignore and fall back
+            }
+        }
+        return this.configText.value;
+    }
+
+    private setStatus(message: string): void {
+        this.configStatus.textContent = message;
+        window.setTimeout(() => {
+            if (this.configStatus.textContent === message) {
+                this.configStatus.textContent = '';
+            }
+        }, 2500);
+    }
+
+    private buildExportConfig(): any {
+        const seed = this.parseSeed(this.seedInput.value) ?? getSeed();
+        const ratios = this.getStrategyRatios();
+        const { agentCount, foodCount } = this.world.getConfig();
+
+        return {
+            version: 1,
+            seed,
+            world: {
+                agentCount,
+                foodCount,
+                strategyRatios: ratios,
+            },
+            params: {
+                foodRespawnRate: CONFIG.FOOD_RESPAWN_RATE,
+                maxAgents: CONFIG.MAX_AGENTS,
+                mutationChance: CONFIG.MUTATION_CHANCE,
+                visionRadius: CONFIG.VISION_RADIUS,
+                boundaryMode: CONFIG.BOUNDARY_MODE,
+            },
+            rules: {
+                fightCost: runtimeConfig.FIGHT_COST,
+                foodValue: runtimeConfig.FOOD_VALUE,
+                payoff: runtimeConfig.PAYOFF,
+            },
+        };
+    }
+
+    private applyImportedConfig(raw: any): void {
+        if (!raw || typeof raw !== 'object') {
+            throw new Error('Config must be an object');
+        }
+
+        const version = raw.version ?? 1;
+        if (version !== 1) {
+            throw new Error(`Unsupported config version: ${version}`);
+        }
+
+        const seed = this.parseSeed(`${raw.seed ?? ''}`) ?? getSeed();
+
+        const worldCfg = raw.world ?? {};
+        const params = raw.params ?? {};
+        const rules = raw.rules ?? {};
+
+        if (typeof params.foodRespawnRate === 'number') (CONFIG as any).FOOD_RESPAWN_RATE = params.foodRespawnRate;
+        if (typeof params.maxAgents === 'number') (CONFIG as any).MAX_AGENTS = Math.round(params.maxAgents);
+        if (typeof params.mutationChance === 'number') (CONFIG as any).MUTATION_CHANCE = params.mutationChance;
+        if (typeof params.visionRadius === 'number') (CONFIG as any).VISION_RADIUS = Math.round(params.visionRadius);
+        if (params.boundaryMode === 'bounce' || params.boundaryMode === 'wrap') (CONFIG as any).BOUNDARY_MODE = params.boundaryMode;
+
+        if (typeof rules.fightCost === 'number') runtimeConfig.FIGHT_COST = Math.max(0, Math.round(rules.fightCost));
+        if (typeof rules.foodValue === 'number') runtimeConfig.FOOD_VALUE = Math.max(0, Math.round(rules.foodValue));
+        if (rules.payoff && typeof rules.payoff === 'object') {
+            for (const key of Object.keys(runtimeConfig.PAYOFF) as PayoffKey[]) {
+                const tuple = rules.payoff[key];
+                if (Array.isArray(tuple) && tuple.length === 2) {
+                    const a = Number.parseInt(tuple[0], 10);
+                    const b = Number.parseInt(tuple[1], 10);
+                    if (Number.isFinite(a) && Number.isFinite(b)) {
+                        runtimeConfig.PAYOFF[key][0] = a;
+                        runtimeConfig.PAYOFF[key][1] = b;
+                    }
+                }
+            }
+        }
+
+        // Strategy ratios (normalize + validate)
+        const ratiosIn = worldCfg.strategyRatios;
+        const ratiosOut: Record<StrategyType, number> = {
+            Aggressive: 0,
+            Passive: 0,
+            Cooperative: 0,
+            TitForTat: 0,
+            Random: 0,
+        };
+        if (ratiosIn && typeof ratiosIn === 'object') {
+            for (const key of Object.keys(ratiosOut) as StrategyType[]) {
+                const v = ratiosIn[key];
+                if (typeof v === 'number' && Number.isFinite(v)) ratiosOut[key] = Math.max(0, v);
+            }
+        }
+        const total = Object.values(ratiosOut).reduce((a, b) => a + b, 0);
+        if (total > 0) {
+            for (const key of Object.keys(ratiosOut) as StrategyType[]) {
+                ratiosOut[key] /= total;
+            }
+        } else {
+            // Fallback: keep existing ratios
+            Object.assign(ratiosOut, this.getStrategyRatios());
+        }
+
+        this.seedInput.value = `${seed}`;
+        this.world.reset({
+            agentCount: typeof worldCfg.agentCount === 'number' ? Math.round(worldCfg.agentCount) : undefined,
+            foodCount: typeof worldCfg.foodCount === 'number' ? Math.round(worldCfg.foodCount) : undefined,
+            strategyRatios: ratiosOut,
+            seed,
+        });
+
+        this.updateRatioSliders(ratiosOut);
+        this.chart?.reset();
+        this.syncParameterUIFromConfig();
+        this.syncGameRulesUIFromRuntimeConfig();
+        this.updateUI();
+    }
+
+    private getPayoffInputBindings(): Array<{ id: string; key: PayoffKey; idx: 0 | 1 }> {
+        return [
+            { id: 'payoff-fight_fight-0', key: 'FIGHT_FIGHT', idx: 0 },
+            { id: 'payoff-fight_fight-1', key: 'FIGHT_FIGHT', idx: 1 },
+            { id: 'payoff-fight_share-0', key: 'FIGHT_SHARE', idx: 0 },
+            { id: 'payoff-fight_share-1', key: 'FIGHT_SHARE', idx: 1 },
+            { id: 'payoff-fight_flee-0', key: 'FIGHT_FLEE', idx: 0 },
+            { id: 'payoff-fight_flee-1', key: 'FIGHT_FLEE', idx: 1 },
+            { id: 'payoff-share_share-0', key: 'SHARE_SHARE', idx: 0 },
+            { id: 'payoff-share_share-1', key: 'SHARE_SHARE', idx: 1 },
+            { id: 'payoff-share_flee-0', key: 'SHARE_FLEE', idx: 0 },
+            { id: 'payoff-share_flee-1', key: 'SHARE_FLEE', idx: 1 },
+            { id: 'payoff-flee_flee-0', key: 'FLEE_FLEE', idx: 0 },
+            { id: 'payoff-flee_flee-1', key: 'FLEE_FLEE', idx: 1 },
+        ];
     }
 }

@@ -12,6 +12,13 @@ Browserbasierte 2D‑Simulation spieltheoretischer Agenten (Hawk/Dove/Tit‑for�
 - UI‑Panel für Start/Pause/Step/Reset, Speed, Presets, Ratios, Food‑Rate, Max‑Agents, Mutation.
 - Live‑Stats + Population‑Chart.
 
+- Chart.js wird lokal gebundelt (kein CDN/offline-safe).
+- Deterministische Runs via Seed + Tick-basierte Sim-Zeit (kein `Date.now()` in der Simulationslogik).
+- Runtime "Game Rules" Editor (Fight Cost, Food Value, Payoff-Matrix) + Reset auf Defaults.
+- Agent Inspector (Click auf Agent) inkl. Memory Log + Highlight.
+- Strategy-vs-Strategy Heatmap (Analysis) fr schnelle Vergleichbarkeit.
+- Config Export/Import als versioniertes JSON (Clipboard/Textarea).
+
 ## Quickstart
 Voraussetzung: Node.js 20+ und npm. In diesem Repo kann `setup_env.bat` im Projekt‑Root genutzt werden, falls Node lokal über einen eigenen Pfad bereitgestellt wird.
 
@@ -27,12 +34,18 @@ Danach öffnet Vite i.d.R. `http://localhost:5173`.
 - **Start/Pause/Step/Reset**: Simulation steuern.
 - **Speed**: Zeit‑Multiplikator.
 - **Preset**: Vordefinierte Szenarien.
+- **Seed**: Seed anzeigen/setzen, "Copy" kopiert ins Clipboard (Reproduzierbarkeit).
 - **Strategy Ratios**: Prozentuale Startverteilung der Strategien.
 - **Parameters**:
   - Food Rate (Respawn pro Sekunde)
-  - Max Agents (Populations‑Cap)
-  - Mutation (Trait‑Mutation pro Geburt)
-- **Debug**: Grid / Vision‑Radius.
+  - Max Agents (Populations-Cap)
+  - Mutation (Trait-Mutation pro Geburt)
+- **Game Rules**:
+  - Fight Cost / Food Value
+  - Payoff-Matrix (Self/Other)
+- **Config**: Copy/Paste JSON (Clipboard/Textarea) + Reset.
+- **Analysis**: Heatmap "wer gewinnt gegen wen" (grn/rot).
+- **Debug**: Grid / Vision-Radius.
 
 ## Presets
 Beispiele:

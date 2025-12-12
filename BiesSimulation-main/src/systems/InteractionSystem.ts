@@ -7,7 +7,8 @@
 import { Agent } from '../models/Agent';
 import { Food } from '../models/Food';
 import { CONFIG } from '../config/globalConfig';
-import type { ActionType } from '../config/globalConfig';
+import type { ActionType, StrategyType } from '../config/globalConfig';
+import { runtimeConfig } from '../config/runtimeConfig';
 import { SpatialGrid } from '../core/SpatialGrid';
 import type { EncounterResult } from '../strategies/IStrategy';
 import { withPooledVector } from '../utils/ObjectPool';
@@ -16,17 +17,51 @@ export interface InteractionEvent {
     type: 'fight' | 'share' | 'consume' | 'flee';
     position: { x: number; y: number };
     agents: string[];
-    timestamp: number;
+    timestamp: number; // world tick
 }
+
+export interface HeatmapCell {
+    wins: number;
+    losses: number;
+    ties: number;
+    total: number;
+}
+
+export type InteractionHeatmap = Record<StrategyType, Record<StrategyType, HeatmapCell>>;
 
 export class InteractionSystem {
     private recentEvents: InteractionEvent[] = [];
     private readonly maxEvents = 50;
+    private heatmap: InteractionHeatmap = this.createEmptyHeatmap();
+
+    resetStats(): void {
+        this.recentEvents = [];
+        this.heatmap = this.createEmptyHeatmap();
+    }
+
+    getHeatmap(): InteractionHeatmap {
+        return this.heatmap;
+    }
+
+    private createEmptyHeatmap(): InteractionHeatmap {
+        const strategies: StrategyType[] = ['Aggressive', 'Passive', 'Cooperative', 'TitForTat', 'Random'];
+        const emptyCell = (): HeatmapCell => ({ wins: 0, losses: 0, ties: 0, total: 0 });
+
+        const out = {} as InteractionHeatmap;
+        for (const row of strategies) {
+            out[row] = {} as Record<StrategyType, HeatmapCell>;
+            for (const col of strategies) {
+                out[row][col] = emptyCell();
+            }
+        }
+        return out;
+    }
 
     /**
      * Process all interactions for this tick
      */
     update(
+        tick: number,
         agents: Agent[],
         food: Food[],
         agentGrid: SpatialGrid<Agent>,
@@ -70,7 +105,7 @@ export class InteractionSystem {
                         type: 'consume',
                         position: { x: f.position.x, y: f.position.y },
                         agents: [agent.id],
-                        timestamp: Date.now(),
+                        timestamp: tick,
                     });
                 }
             }
@@ -93,7 +128,7 @@ export class InteractionSystem {
 
                 const dist = agent.position.dist(other.position);
                 if (dist < CONFIG.COLLISION_RADIUS * 2) {
-                    this.resolveAgentInteraction(agent, other);
+                    this.resolveAgentInteraction(tick, agent, other);
                 }
             }
         }
@@ -104,7 +139,7 @@ export class InteractionSystem {
     /**
      * Resolve interaction between two agents
      */
-    private resolveAgentInteraction(agent1: Agent, agent2: Agent): void {
+    private resolveAgentInteraction(tick: number, agent1: Agent, agent2: Agent): void {
         // Both agents decide their action
         const action1 = agent1.decideAction(agent2);
         const action2 = agent2.decideAction(agent1);
@@ -112,14 +147,23 @@ export class InteractionSystem {
         // Get payoff results
         const [outcome1, outcome2] = this.calculatePayoff(action1, action2);
 
+        const interactionOccurred = action1 !== 'IGNORE' && action2 !== 'IGNORE';
+        const fightCost1 = interactionOccurred && action1 === 'FIGHT' ? runtimeConfig.FIGHT_COST : 0;
+        const fightCost2 = interactionOccurred && action2 === 'FIGHT' ? runtimeConfig.FIGHT_COST : 0;
+        const netOutcome1 = outcome1 - fightCost1;
+        const netOutcome2 = outcome2 - fightCost2;
+        if (interactionOccurred) {
+            this.trackHeatmap(agent1.strategyType, agent2.strategyType, netOutcome1, netOutcome2);
+        }
+
         // Apply energy changes
         agent1.energy += outcome1;
         agent2.energy += outcome2;
 
         // Apply fight cost separately (payoff matrix is resource delta)
         if (action1 !== 'IGNORE' && action2 !== 'IGNORE') {
-            if (action1 === 'FIGHT') agent1.energy -= CONFIG.FIGHT_COST;
-            if (action2 === 'FIGHT') agent2.energy -= CONFIG.FIGHT_COST;
+            if (action1 === 'FIGHT') agent1.energy -= runtimeConfig.FIGHT_COST;
+            if (action2 === 'FIGHT') agent2.energy -= runtimeConfig.FIGHT_COST;
         }
 
         // Clamp to valid energy range
@@ -149,7 +193,7 @@ export class InteractionSystem {
                     y: (agent1.position.y + agent2.position.y) / 2,
                 },
                 agents: [agent1.id, agent2.id],
-                timestamp: Date.now(),
+                timestamp: tick,
             });
         } else if (action1 === 'SHARE' && action2 === 'SHARE') {
             this.addEvent({
@@ -159,7 +203,7 @@ export class InteractionSystem {
                     y: (agent1.position.y + agent2.position.y) / 2,
                 },
                 agents: [agent1.id, agent2.id],
-                timestamp: Date.now(),
+                timestamp: tick,
             });
         } else if (action1 === 'FLEE' || action2 === 'FLEE') {
             this.addEvent({
@@ -169,7 +213,7 @@ export class InteractionSystem {
                     y: (agent1.position.y + agent2.position.y) / 2,
                 },
                 agents: [agent1.id, agent2.id],
-                timestamp: Date.now(),
+                timestamp: tick,
             });
         }
 
@@ -177,14 +221,16 @@ export class InteractionSystem {
         const result1: EncounterResult = {
             myAction: action1,
             theirAction: action2,
-            energyChange: outcome1,
-            outcome: outcome1 > outcome2 ? 'won' : outcome1 < outcome2 ? 'lost' : 'tie',
+            energyChange: netOutcome1,
+            outcome: netOutcome1 > netOutcome2 ? 'won' : netOutcome1 < netOutcome2 ? 'lost' : 'tie',
+            tick,
         };
         const result2: EncounterResult = {
             myAction: action2,
             theirAction: action1,
-            energyChange: outcome2,
-            outcome: outcome2 > outcome1 ? 'won' : outcome2 < outcome1 ? 'lost' : 'tie',
+            energyChange: netOutcome2,
+            outcome: netOutcome2 > netOutcome1 ? 'won' : netOutcome2 < netOutcome1 ? 'lost' : 'tie',
+            tick,
         };
 
         // Notify strategies of result
@@ -209,7 +255,7 @@ export class InteractionSystem {
      * Returns [agent1 outcome, agent2 outcome]
      */
     private calculatePayoff(action1: ActionType, action2: ActionType): [number, number] {
-        const payoff = CONFIG.PAYOFF;
+        const payoff = runtimeConfig.PAYOFF;
 
         // Handle IGNORE (no interaction)
         if (action1 === 'IGNORE' || action2 === 'IGNORE') {
@@ -245,6 +291,30 @@ export class InteractionSystem {
         this.recentEvents.push(event);
         if (this.recentEvents.length > this.maxEvents) {
             this.recentEvents.shift();
+        }
+    }
+
+    private trackHeatmap(
+        strategyA: StrategyType,
+        strategyB: StrategyType,
+        netA: number,
+        netB: number
+    ): void {
+        const cellAB = this.heatmap[strategyA][strategyB];
+        const cellBA = this.heatmap[strategyB][strategyA];
+
+        cellAB.total += 1;
+        cellBA.total += 1;
+
+        if (netA > netB) {
+            cellAB.wins += 1;
+            cellBA.losses += 1;
+        } else if (netA < netB) {
+            cellAB.losses += 1;
+            cellBA.wins += 1;
+        } else {
+            cellAB.ties += 1;
+            cellBA.ties += 1;
         }
     }
 

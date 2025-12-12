@@ -3,14 +3,14 @@
  */
 
 import { Entity } from './Entity';
-import { CONFIG } from '../config/globalConfig';
+import { runtimeConfig } from '../config/runtimeConfig';
 
 export class Food extends Entity {
     public energyValue: number;
 
     constructor(x: number, y: number, energyValue?: number) {
         super(x, y);
-        this.energyValue = energyValue ?? CONFIG.FOOD_VALUE;
+        this.energyValue = energyValue ?? runtimeConfig.FOOD_VALUE;
     }
 
     /**
@@ -19,7 +19,7 @@ export class Food extends Entity {
     resetForSpawn(x: number, y: number, energyValue?: number): void {
         this.id = crypto.randomUUID();
         this.position.set(x, y);
-        this.energyValue = energyValue ?? CONFIG.FOOD_VALUE;
+        this.energyValue = energyValue ?? runtimeConfig.FOOD_VALUE;
         this.isDead = false;
     }
 

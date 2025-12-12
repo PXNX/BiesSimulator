@@ -53,6 +53,27 @@
         </select>
       </div>
 
+      <!-- Seed (deterministic runs) -->
+      <div class="control-group">
+        <label class="control-label">Seed:</label>
+        <div class="seed-row">
+          <input id="seed-input" class="control-input" type="text" spellcheck="false" />
+          <button id="seed-copy" class="btn" title="Copy seed to clipboard">Copy</button>
+        </div>
+      </div>
+
+      <!-- Config import/export -->
+      <div class="control-group">
+        <label class="control-label">Config:</label>
+        <div class="btn-group">
+          <button id="config-copy" class="btn" title="Copy current config as JSON">Copy Config</button>
+          <button id="config-paste" class="btn" title="Paste config JSON (clipboard or textarea)">Paste Config</button>
+        </div>
+        <textarea id="config-text" class="control-textarea" rows="5" spellcheck="false"
+          placeholder="{ &quot;version&quot;: 1, ... }"></textarea>
+        <div id="config-status" class="status-text"></div>
+      </div>
+
       <!-- Population Sliders -->
       <div class="control-group">
         <label class="control-label">Strategy Ratios:</label>
@@ -108,7 +129,7 @@
         </div>
         <div class="param-slider">
           <span>Food Value</span>
-          <input type="range" id="param-foodvalue" min="5" max="100" step="5" value="25" />
+          <input type="range" id="param-foodvalue" min="0" max="200" step="5" value="25" />
           <span id="param-foodvalue-val">25</span>
         </div>
         <div class="param-slider">
@@ -119,6 +140,62 @@
           </select>
           <span id="param-boundarymode-val">bounce</span>
         </div>
+      </div>
+
+      <!-- Game Rules (runtime editable payoff/costs) -->
+      <div class="control-group" id="game-rules-group">
+        <label class="control-label">Game Rules:</label>
+
+        <div class="rules-row">
+          <span class="rules-label">Fight Cost</span>
+          <input id="rule-fight-cost" class="control-input control-input-sm" type="number" step="1" />
+        </div>
+
+        <div class="rules-row">
+          <span class="rules-label">Food Value</span>
+          <input id="rule-food-value" class="control-input control-input-sm" type="number" step="1" />
+        </div>
+
+        <div class="rules-matrix" aria-label="Payoff matrix (Self vs Other)">
+          <div class="matrix-header">
+            <span></span>
+            <span>Self</span>
+            <span>Other</span>
+          </div>
+
+          <div class="matrix-row">
+            <span class="matrix-label">FIGHT vs FIGHT</span>
+            <input id="payoff-fight_fight-0" class="control-input control-input-sm" type="number" step="1" />
+            <input id="payoff-fight_fight-1" class="control-input control-input-sm" type="number" step="1" />
+          </div>
+          <div class="matrix-row">
+            <span class="matrix-label">FIGHT vs SHARE</span>
+            <input id="payoff-fight_share-0" class="control-input control-input-sm" type="number" step="1" />
+            <input id="payoff-fight_share-1" class="control-input control-input-sm" type="number" step="1" />
+          </div>
+          <div class="matrix-row">
+            <span class="matrix-label">FIGHT vs FLEE</span>
+            <input id="payoff-fight_flee-0" class="control-input control-input-sm" type="number" step="1" />
+            <input id="payoff-fight_flee-1" class="control-input control-input-sm" type="number" step="1" />
+          </div>
+          <div class="matrix-row">
+            <span class="matrix-label">SHARE vs SHARE</span>
+            <input id="payoff-share_share-0" class="control-input control-input-sm" type="number" step="1" />
+            <input id="payoff-share_share-1" class="control-input control-input-sm" type="number" step="1" />
+          </div>
+          <div class="matrix-row">
+            <span class="matrix-label">SHARE vs FLEE</span>
+            <input id="payoff-share_flee-0" class="control-input control-input-sm" type="number" step="1" />
+            <input id="payoff-share_flee-1" class="control-input control-input-sm" type="number" step="1" />
+          </div>
+          <div class="matrix-row">
+            <span class="matrix-label">FLEE vs FLEE</span>
+            <input id="payoff-flee_flee-0" class="control-input control-input-sm" type="number" step="1" />
+            <input id="payoff-flee_flee-1" class="control-input control-input-sm" type="number" step="1" />
+          </div>
+        </div>
+
+        <button id="rule-reset" class="btn" title="Reset game rules to defaults">Reset to Defaults</button>
       </div>
 
       <!-- Debug Options -->
@@ -187,6 +264,16 @@
     <!-- Chart Container -->
     <div id="chart-container" class="chart-container">
       <canvas id="population-chart"></canvas>
+    </div>
+
+    <!-- Analysis Container -->
+    <div id="analysis-container" class="analysis-container">
+      <div class="analysis-header">
+        <h4>Analysis</h4>
+      </div>
+      <div class="analysis-content">
+        <table id="heatmap-table" class="heatmap-table" aria-label="Strategy vs Strategy heatmap"></table>
+      </div>
     </div>
   </div>
 

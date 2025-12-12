@@ -23,6 +23,7 @@ export interface EncounterResult {
     theirAction: ActionType;
     energyChange: number;
     outcome: 'won' | 'lost' | 'tie' | 'fled';
+    tick: number;
 }
 
 /**

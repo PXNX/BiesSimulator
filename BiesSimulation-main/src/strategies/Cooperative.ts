@@ -43,6 +43,6 @@ export class Cooperative extends BaseStrategy {
 
     onEncounterResult(self: Agent, other: Agent, result: EncounterResult): void {
         // Learn from encounters - update memory
-        self.rememberEncounter(other.id, result.theirAction, result.outcome);
+        self.rememberEncounter(other.id, result.theirAction, result.outcome, result.tick);
     }
 }

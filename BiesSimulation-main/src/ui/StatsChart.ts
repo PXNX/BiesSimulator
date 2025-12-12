@@ -4,29 +4,14 @@
 
 import { World } from '../core/World';
 import type { StrategyType } from '../config/globalConfig';
+import type { Chart as ChartJS, ChartConfiguration } from 'chart.js';
 
-// Chart.js types (minimal, we'll load from CDN)
-interface ChartDataset {
-    label: string;
-    data: number[];
-    borderColor: string;
-    backgroundColor: string;
-    fill: boolean;
-    stack?: string;
-    tension: number;
-    pointRadius: number;
-}
-
-interface ChartInstance {
-    data: {
-        labels: string[];
-        datasets: ChartDataset[];
-    };
-    update: (mode?: string) => void;
-    destroy: () => void;
-}
-
-declare const Chart: any;
+type LineChart = ChartJS<'line', number[], string>;
+type LineChartConfiguration = ChartConfiguration<'line', number[], string>;
+type ChartConstructor = new (
+    ctx: CanvasRenderingContext2D,
+    config: LineChartConfiguration
+) => LineChart;
 
 const STRATEGY_COLORS: Record<StrategyType, string> = {
     Aggressive: '#ef4444',
@@ -38,9 +23,11 @@ const STRATEGY_COLORS: Record<StrategyType, string> = {
 
 export class StatsChart {
     private world: World;
-    private chart: ChartInstance | null = null;
+    private ChartCtor: ChartConstructor | null = null;
+    private chart: LineChart | null = null;
     private canvas: HTMLCanvasElement;
     private isInitialized: boolean = false;
+    private errorMessageEl: HTMLElement | null = null;
 
     // Data storage
     private maxDataPoints: number = 60;
@@ -60,29 +47,24 @@ export class StatsChart {
     }
 
     private async loadChartJS(): Promise<void> {
-        // Check if already loaded
-        if (typeof Chart !== 'undefined') {
+        try {
+            const mod = await import('chart.js/auto');
+            this.ChartCtor = (mod.default as unknown) as ChartConstructor;
             this.initChart();
-            return;
+        } catch (err) {
+            console.error('Failed to load Chart.js', err);
+            this.showFallback('Chart unavailable (Chart.js failed to load)');
         }
-
-        // Load from CDN
-        const script = document.createElement('script');
-        script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js';
-        script.async = true;
-        script.onload = () => {
-            this.initChart();
-        };
-        document.head.appendChild(script);
     }
 
     private initChart(): void {
-        if (this.isInitialized || !this.canvas) return;
+        if (this.isInitialized || !this.canvas || !this.ChartCtor) return;
 
         const ctx = this.canvas.getContext('2d');
         if (!ctx) return;
 
-        this.chart = new Chart(ctx, {
+        this.clearFallback();
+        this.chart = new this.ChartCtor(ctx, {
             type: 'line',
             data: {
                 labels: [],
@@ -140,7 +122,7 @@ export class StatsChart {
         this.isInitialized = true;
     }
 
-    private createDataset(strategy: StrategyType): ChartDataset {
+    private createDataset(strategy: StrategyType) {
         return {
             label: strategy,
             data: [],
@@ -209,6 +191,29 @@ export class StatsChart {
             }
             this.chart.data.labels = [];
             this.chart.update('none');
+        }
+    }
+
+    private showFallback(message: string): void {
+        const container = document.getElementById('chart-container');
+        if (!container) return;
+
+        this.canvas?.classList.add('hidden');
+
+        if (!this.errorMessageEl) {
+            this.errorMessageEl = document.createElement('div');
+            this.errorMessageEl.className = 'chart-fallback';
+            container.appendChild(this.errorMessageEl);
+        }
+
+        this.errorMessageEl.textContent = message;
+    }
+
+    private clearFallback(): void {
+        this.canvas?.classList.remove('hidden');
+        if (this.errorMessageEl) {
+            this.errorMessageEl.remove();
+            this.errorMessageEl = null;
         }
     }
 }

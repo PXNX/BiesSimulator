@@ -4,9 +4,11 @@ import { Food } from '../src/models/Food';
 import { SpatialGrid } from '../src/core/SpatialGrid';
 import { InteractionSystem } from '../src/systems/InteractionSystem';
 import { CONFIG, setWorldDimensions } from '../src/config/globalConfig';
+import { resetRuntimeConfig } from '../src/config/runtimeConfig';
 
 describe('InteractionSystem', () => {
     it('applies fight cost and clamps energy to MAX_ENERGY', () => {
+        resetRuntimeConfig();
         setWorldDimensions(200, 200);
 
         const aggressive = new Agent(0, 0, 'Aggressive', {
@@ -31,10 +33,9 @@ describe('InteractionSystem', () => {
         agentGrid.insert(passive);
 
         const system = new InteractionSystem();
-        system.update([aggressive, passive], [], agentGrid, foodGrid);
+        system.update(1, [aggressive, passive], [], agentGrid, foodGrid);
 
         expect(aggressive.energy).toBe(CONFIG.MAX_ENERGY);
         expect(passive.energy).toBe(90);
     });
 });
-
