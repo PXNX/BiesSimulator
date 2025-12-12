@@ -5,27 +5,96 @@
  */
 
 import { Agent } from '../models/Agent';
+import { Food } from '../models/Food';
 import { CONFIG, getWorldDimensions } from '../config/globalConfig';
+import { SpatialGrid } from '../core/SpatialGrid';
 import { Vector2 } from '../models/Vector2';
+import { random } from '../utils/RNG';
 
 export class MovementSystem {
     /**
      * Update all agents' movement
      */
-    update(agents: Agent[], _delta: number): void {
+    update(
+        agents: Agent[],
+        agentGrid: SpatialGrid<Agent>,
+        foodGrid: SpatialGrid<Food>,
+        delta: number
+    ): void {
         for (const agent of agents) {
             if (agent.isDead) continue;
 
-            // Apply wander behavior
-            this.wander(agent);
+            const neighbors = agentGrid.queryNear(agent, agent.visionRadius);
+
+            // Separation to avoid crowding
+            if (neighbors.length > 0) {
+                const separation = this.separate(agent, neighbors, CONFIG.COLLISION_RADIUS * 2);
+                separation.mult(0.6);
+                agent.applyForce(separation);
+            }
+
+            // Flee from nearby threats when low on energy
+            const threat = this.findClosestThreat(agent, neighbors);
+            if (threat) {
+                this.fleeFrom(agent, threat.position);
+            } else {
+                // Seek closest food within vision radius
+                const targetFood = this.findClosestFood(agent, foodGrid);
+                if (targetFood) {
+                    this.seekFood(agent, targetFood.position);
+                } else {
+                    // Default wander
+                    this.wander(agent);
+                }
+            }
 
             // Handle boundaries
             this.boundaries(agent);
 
             // Apply energy costs for movement
-            agent.drainMovementEnergy();
-            agent.drainBaseEnergy();
+            agent.drainMovementEnergy(delta);
+            agent.drainBaseEnergy(delta);
         }
+    }
+
+    private findClosestFood(agent: Agent, foodGrid: SpatialGrid<Food>): Food | null {
+        const nearbyFood = foodGrid.queryNear(agent as any, agent.visionRadius);
+        let closest: Food | null = null;
+        let closestDistSq = Infinity;
+
+        for (const f of nearbyFood) {
+            if (f.isDead) continue;
+            const dSq = agent.position.distSq(f.position);
+            if (dSq < closestDistSq) {
+                closestDistSq = dSq;
+                closest = f;
+            }
+        }
+
+        return closest;
+    }
+
+    private findClosestThreat(agent: Agent, neighbors: Agent[]): Agent | null {
+        if (agent.energy > 30) return null;
+
+        let closest: Agent | null = null;
+        let closestDistSq = Infinity;
+
+        for (const other of neighbors) {
+            if (other.isDead) continue;
+            const isThreat =
+                other.strategyType === 'Aggressive' ||
+                other.traits.aggression > 0.7;
+            if (!isThreat) continue;
+
+            const dSq = agent.position.distSq(other.position);
+            if (dSq < closestDistSq) {
+                closestDistSq = dSq;
+                closest = other;
+            }
+        }
+
+        return closest;
     }
 
     /**
@@ -39,7 +108,7 @@ export class MovementSystem {
         const wanderJitter = CONFIG.WANDER_SMOOTHNESS;
 
         // Slightly randomize the wander angle
-        agent.wanderAngle += (Math.random() - 0.5) * wanderJitter * Math.PI;
+        agent.wanderAngle += (random() - 0.5) * wanderJitter * Math.PI;
 
         // Calculate target on wander circle
         const circleCenter = agent.velocity.copy().normalize().mult(wanderDistance);

@@ -10,6 +10,7 @@ import { CONFIG } from '../config/globalConfig';
 import type { StrategyType, ActionType } from '../config/globalConfig';
 import { getStrategy } from '../strategies/index';
 import type { IStrategy, EncounterMemory } from '../strategies/IStrategy';
+import { random } from '../utils/RNG';
 
 export class Agent extends Entity {
     // Physics
@@ -41,7 +42,7 @@ export class Agent extends Entity {
     public reproductionCooldown: number = 0;
 
     // Wander behavior state (for smooth movement)
-    public wanderAngle: number = Math.random() * Math.PI * 2;
+    public wanderAngle: number = random() * Math.PI * 2;
 
     constructor(
         x: number,
@@ -95,8 +96,9 @@ export class Agent extends Entity {
         // Clamp acceleration
         this.acceleration.limit(this.maxForce);
 
-        // Update velocity
-        this.velocity.add(this.acceleration.copy().mult(delta));
+        // Update velocity (avoid allocations)
+        this.velocity.x += this.acceleration.x * delta;
+        this.velocity.y += this.acceleration.y * delta;
 
         // Apply friction/damping
         this.velocity.mult(CONFIG.FRICTION);
@@ -104,8 +106,9 @@ export class Agent extends Entity {
         // Limit speed
         this.velocity.limit(this.maxSpeed);
 
-        // Update position
-        this.position.add(this.velocity.copy().mult(delta));
+        // Update position (avoid allocations)
+        this.position.x += this.velocity.x * delta;
+        this.position.y += this.velocity.y * delta;
 
         // Reset acceleration
         this.acceleration.mult(0);
@@ -132,17 +135,18 @@ export class Agent extends Entity {
     /**
      * Consume energy for movement
      */
-    drainMovementEnergy(): void {
+    drainMovementEnergy(delta: number): void {
         const speed = this.velocity.mag();
-        const cost = speed * CONFIG.MOVEMENT_COST_FACTOR * (1 / this.traits.stamina);
+        const cost = speed * CONFIG.MOVEMENT_COST_FACTOR * delta * (1 / this.traits.stamina);
         this.energy -= cost;
     }
 
     /**
      * Consume base tick energy
      */
-    drainBaseEnergy(): void {
-        this.energy -= CONFIG.BASE_TICK_COST * (1 / this.traits.stamina);
+    drainBaseEnergy(delta: number): void {
+        const ageMultiplier = 1 + this.age * CONFIG.AGE_ENERGY_COST_FACTOR;
+        this.energy -= CONFIG.BASE_TICK_COST * ageMultiplier * delta * (1 / this.traits.stamina);
     }
 
     /**
@@ -233,38 +237,55 @@ export class Agent extends Entity {
     }
 
     /**
-     * Check if agent can reproduce
+     * Reset agent state for reuse from pool.
+     * Clears memory/cooldowns and reinitializes traits/physics/strategy.
      */
-    canReproduce(): boolean {
-        return (
-            this.energy >= CONFIG.REPRODUCTION_COST * 1.5 &&
-            this.reproductionCooldown <= 0 &&
-            !this.isDead
+    resetForSpawn(
+        x: number,
+        y: number,
+        strategyType?: StrategyType,
+        traits?: Partial<Traits>
+    ): void {
+        this.id = crypto.randomUUID();
+        this.position.set(x, y);
+        this.isDead = false;
+
+        this.traits = traits
+            ? { ...DEFAULT_TRAITS, ...traits }
+            : randomTraits();
+
+        const angle = random() * Math.PI * 2;
+        this.velocity.set(Math.cos(angle), Math.sin(angle)).mult(
+            CONFIG.DEFAULT_SPEED * this.traits.speed
         );
+        this.acceleration.set(0, 0);
+        this.maxSpeed = CONFIG.MAX_SPEED * this.traits.speed;
+        this.maxForce = CONFIG.MAX_FORCE;
+
+        this.energy = CONFIG.STARTING_ENERGY;
+        this.age = 0;
+        this.reproductionCooldown = 0;
+
+        this.wanderAngle = random() * Math.PI * 2;
+
+        this.interactionCooldowns.clear();
+        this.lastInteractionTime = 0;
+        this.encounterMemory.clear();
+
+        this.strategyType = strategyType || 'Random';
+        this._strategy = getStrategy(this.strategyType);
     }
 
     /**
-     * Create child agent nearby
+     * Minimal cleanup when returning to pool.
      */
-    reproduce(): Agent | null {
-        if (!this.canReproduce()) return null;
-
-        // Energy cost
-        this.energy -= CONFIG.REPRODUCTION_COST;
-        this.reproductionCooldown = 5; // 5 seconds cooldown
-
-        // Spawn position nearby
-        const offset = Vector2.random().mult(20 + Math.random() * 30);
-        const childPos = this.position.copy().add(offset);
-
-        // Create child with inherited traits (potentially mutated)
-        const child = new Agent(
-            childPos.x,
-            childPos.y,
-            this.strategyType, // Inherit strategy
-            this.traits // Inherit traits (mutation happens in constructor if needed)
-        );
-
-        return child;
+    resetToPool(): void {
+        this.isDead = false;
+        this.energy = 0;
+        this.age = 0;
+        this.reproductionCooldown = 0;
+        this.interactionCooldowns.clear();
+        this.encounterMemory.clear();
     }
+
 }

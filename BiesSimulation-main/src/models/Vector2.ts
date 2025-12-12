@@ -1,3 +1,5 @@
+import { random } from '../utils/RNG';
+
 export class Vector2 {
     constructor(public x: number, public y: number) { }
 
@@ -101,7 +103,7 @@ export class Vector2 {
     }
 
     static random(): Vector2 {
-        const angle = Math.random() * Math.PI * 2;
+        const angle = random() * Math.PI * 2;
         return new Vector2(Math.cos(angle), Math.sin(angle));
     }
 

@@ -256,6 +256,10 @@ input[type="range"]::-webkit-slider-thumb:hover {
   flex: 1;
 }
 
+.param-slider select {
+  flex: 1;
+}
+
 .param-slider span:last-child {
   width: 40px;
   text-align: right;

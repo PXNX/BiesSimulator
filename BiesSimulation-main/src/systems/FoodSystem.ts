@@ -6,6 +6,7 @@
 import { Food } from '../models/Food';
 import { CONFIG, getWorldDimensions } from '../config/globalConfig';
 import { Vector2 } from '../models/Vector2';
+import { random, randomInt, randomRange } from '../utils/RNG';
 
 export interface FoodHotspot {
     position: Vector2;
@@ -16,7 +17,7 @@ export class FoodSystem {
     private respawnAccumulator: number = 0;
     private hotspots: FoodHotspot[] = [];
 
-    constructor() {
+    constructor(private createFood: (x: number, y: number) => Food = (x, y) => new Food(x, y)) {
         this.initializeHotspots();
     }
 
@@ -30,10 +31,10 @@ export class FoodSystem {
         this.hotspots = [];
 
         for (let i = 0; i < CONFIG.FOOD_HOTSPOT_COUNT; i++) {
-            this.hotspots.push({
-                position: new Vector2(
-                    50 + Math.random() * (width - 100),
-                    50 + Math.random() * (height - 100)
+                this.hotspots.push({
+                    position: new Vector2(
+                    randomRange(50, width - 50),
+                    randomRange(50, height - 50)
                 ),
                 radius: CONFIG.FOOD_HOTSPOT_RADIUS,
             });
@@ -75,7 +76,7 @@ export class FoodSystem {
 
             for (let i = 0; i < toSpawn; i++) {
                 const pos = this.getSpawnPosition();
-                newFood.push(new Food(pos.x, pos.y));
+                newFood.push(this.createFood(pos.x, pos.y));
             }
         }
 
@@ -92,14 +93,14 @@ export class FoodSystem {
         // Check if we should spawn in a hotspot
         if (CONFIG.FOOD_HOTSPOTS_ENABLED &&
             this.hotspots.length > 0 &&
-            Math.random() < CONFIG.FOOD_HOTSPOT_WEIGHT) {
+            random() < CONFIG.FOOD_HOTSPOT_WEIGHT) {
 
             // Pick a random hotspot
-            const hotspot = this.hotspots[Math.floor(Math.random() * this.hotspots.length)];
+            const hotspot = this.hotspots[randomInt(this.hotspots.length)];
 
             // Random position within hotspot
-            const angle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * hotspot.radius;
+            const angle = randomRange(0, Math.PI * 2);
+            const distance = randomRange(0, hotspot.radius);
             const x = hotspot.position.x + Math.cos(angle) * distance;
             const y = hotspot.position.y + Math.sin(angle) * distance;
 
@@ -111,8 +112,8 @@ export class FoodSystem {
 
         // Random position
         return new Vector2(
-            margin + Math.random() * (width - margin * 2),
-            margin + Math.random() * (height - margin * 2)
+            randomRange(margin, width - margin),
+            randomRange(margin, height - margin)
         );
     }
 
@@ -130,7 +131,7 @@ export class FoodSystem {
         const food: Food[] = [];
         for (let i = 0; i < count; i++) {
             const pos = this.getSpawnPosition();
-            food.push(new Food(pos.x, pos.y));
+            food.push(this.createFood(pos.x, pos.y));
         }
         return food;
     }

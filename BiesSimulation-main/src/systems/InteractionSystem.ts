@@ -116,6 +116,16 @@ export class InteractionSystem {
         agent1.energy += outcome1;
         agent2.energy += outcome2;
 
+        // Apply fight cost separately (payoff matrix is resource delta)
+        if (action1 !== 'IGNORE' && action2 !== 'IGNORE') {
+            if (action1 === 'FIGHT') agent1.energy -= CONFIG.FIGHT_COST;
+            if (action2 === 'FIGHT') agent2.energy -= CONFIG.FIGHT_COST;
+        }
+
+        // Clamp to valid energy range
+        agent1.energy = Math.max(0, Math.min(CONFIG.MAX_ENERGY, agent1.energy));
+        agent2.energy = Math.max(0, Math.min(CONFIG.MAX_ENERGY, agent2.energy));
+
         // Apply knockback for fights
         if (action1 === 'FIGHT' || action2 === 'FIGHT') {
             const direction = Vector2.subtract(agent2.position, agent1.position).normalize();

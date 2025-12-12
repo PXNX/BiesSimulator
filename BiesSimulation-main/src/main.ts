@@ -6,6 +6,7 @@ import { PRESETS } from './config/presets';
 import { Controls } from './ui/Controls';
 import { StatsDisplay } from './ui/StatsDisplay';
 import { StatsChart } from './ui/StatsChart';
+import { rng, setSeed, getSeed } from './utils/RNG';
 
 // Initialize renderer (this sets world dimensions)
 const renderer = new CanvasRenderer('sim-canvas');
@@ -18,9 +19,9 @@ const world = new World({
 });
 
 // Initialize UI components
-const controls = new Controls(world);
-const statsDisplay = new StatsDisplay(world);
 const statsChart = new StatsChart(world);
+const controls = new Controls(world, statsChart);
+const statsDisplay = new StatsDisplay(world);
 
 const update = (delta: number) => {
   world.update(delta);
@@ -40,8 +41,11 @@ gameLoop.start();
 (window as any).presets = PRESETS;
 (window as any).controls = controls;
 (window as any).chart = statsChart;
+(window as any).rng = rng;
+(window as any).setSeed = setSeed;
+(window as any).getSeed = getSeed;
 
 // Log startup
 console.log('%c🧬 BiesSimulation v1.0', 'color: #e94560; font-size: 16px; font-weight: bold;');
 console.log('Initial stats:', world.getStats());
-console.log('Debug: window.world, window.presets, window.controls, window.chart');
+console.log('Debug: window.world, window.presets, window.controls, window.chart, window.setSeed(seed)');

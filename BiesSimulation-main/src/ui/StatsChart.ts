@@ -12,6 +12,7 @@ interface ChartDataset {
     borderColor: string;
     backgroundColor: string;
     fill: boolean;
+    stack?: string;
     tension: number;
     pointRadius: number;
 }
@@ -117,10 +118,12 @@ export class StatsChart {
                 scales: {
                     x: {
                         display: false,
+                        stacked: true,
                     },
                     y: {
                         display: true,
                         min: 0,
+                        stacked: true,
                         grid: {
                             color: 'rgba(255,255,255,0.05)',
                         },
@@ -144,6 +147,7 @@ export class StatsChart {
             borderColor: STRATEGY_COLORS[strategy],
             backgroundColor: STRATEGY_COLORS[strategy] + '20',
             fill: true,
+            stack: 'population',
             tension: 0.3,
             pointRadius: 0,
         };

@@ -9,6 +9,7 @@ import type { StrategyType } from '../config/globalConfig';
 
 export class Controls {
     private world: World;
+    private chart?: { reset: () => void };
     private isCollapsed: boolean = false;
 
     // DOM Elements
@@ -21,12 +22,27 @@ export class Controls {
     private speedValue: HTMLElement;
     private presetSelect: HTMLSelectElement;
 
+    // Parameter controls
+    private foodRateSlider: HTMLInputElement;
+    private foodRateValue: HTMLElement;
+    private maxAgentsSlider: HTMLInputElement;
+    private maxAgentsValue: HTMLElement;
+    private mutationSlider: HTMLInputElement;
+    private mutationValue: HTMLElement;
+    private visionSlider: HTMLInputElement;
+    private visionValue: HTMLElement;
+    private foodValueSlider: HTMLInputElement;
+    private foodValueValue: HTMLElement;
+    private boundarySelect: HTMLSelectElement;
+    private boundaryValue: HTMLElement;
+
     // Strategy ratio elements
     private ratioSliders: Map<StrategyType, HTMLInputElement> = new Map();
     private ratioValues: Map<StrategyType, HTMLElement> = new Map();
 
-    constructor(world: World) {
+    constructor(world: World, chart?: { reset: () => void }) {
         this.world = world;
+        this.chart = chart;
 
         // Get elements
         this.panel = document.getElementById('controls-panel')!;
@@ -37,6 +53,20 @@ export class Controls {
         this.speedSlider = document.getElementById('speed-slider') as HTMLInputElement;
         this.speedValue = document.getElementById('speed-value')!;
         this.presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
+
+        // Parameter elements
+        this.foodRateSlider = document.getElementById('param-foodrate') as HTMLInputElement;
+        this.foodRateValue = document.getElementById('param-foodrate-val')!;
+        this.maxAgentsSlider = document.getElementById('param-maxagents') as HTMLInputElement;
+        this.maxAgentsValue = document.getElementById('param-maxagents-val')!;
+        this.mutationSlider = document.getElementById('param-mutation') as HTMLInputElement;
+        this.mutationValue = document.getElementById('param-mutation-val')!;
+        this.visionSlider = document.getElementById('param-vision') as HTMLInputElement;
+        this.visionValue = document.getElementById('param-vision-val')!;
+        this.foodValueSlider = document.getElementById('param-foodvalue') as HTMLInputElement;
+        this.foodValueValue = document.getElementById('param-foodvalue-val')!;
+        this.boundarySelect = document.getElementById('param-boundarymode') as HTMLSelectElement;
+        this.boundaryValue = document.getElementById('param-boundarymode-val')!;
 
         // Initialize strategy sliders
         const strategies: StrategyType[] = ['Aggressive', 'Passive', 'Cooperative', 'TitForTat', 'Random'];
@@ -53,6 +83,7 @@ export class Controls {
         }
 
         this.setupEventListeners();
+        this.syncParameterUIFromConfig();
         this.updateUI();
     }
 
@@ -88,6 +119,8 @@ export class Controls {
                 foodCount: CONFIG.INITIAL_FOOD_COUNT,
                 strategyRatios: ratios,
             });
+            this.chart?.reset();
+            this.syncParameterUIFromConfig();
             this.updateUI();
         });
 
@@ -105,6 +138,8 @@ export class Controls {
             if (preset) {
                 this.world.loadPreset(preset);
                 this.updateRatioSliders(preset.strategyRatios);
+                this.chart?.reset();
+                this.syncParameterUIFromConfig();
                 this.updateUI();
             }
         });
@@ -120,20 +155,41 @@ export class Controls {
             });
         }
 
-        // Parameter sliders
-        this.setupParameterSlider('param-foodrate', (value) => {
+        // Parameter sliders/select
+        this.foodRateSlider.addEventListener('input', () => {
+            const value = parseFloat(this.foodRateSlider.value);
             (CONFIG as any).FOOD_RESPAWN_RATE = value;
-            document.getElementById('param-foodrate-val')!.textContent = `${value.toFixed(1)}/s`;
+            this.foodRateValue.textContent = `${value.toFixed(1)}/s`;
         });
 
-        this.setupParameterSlider('param-maxagents', (value) => {
-            (CONFIG as any).MAX_AGENTS = Math.round(value);
-            document.getElementById('param-maxagents-val')!.textContent = `${Math.round(value)}`;
+        this.maxAgentsSlider.addEventListener('input', () => {
+            const value = Math.round(parseFloat(this.maxAgentsSlider.value));
+            (CONFIG as any).MAX_AGENTS = value;
+            this.maxAgentsValue.textContent = `${value}`;
         });
 
-        this.setupParameterSlider('param-mutation', (value) => {
+        this.mutationSlider.addEventListener('input', () => {
+            const value = parseFloat(this.mutationSlider.value);
             (CONFIG as any).MUTATION_CHANCE = value;
-            document.getElementById('param-mutation-val')!.textContent = `${Math.round(value * 100)}%`;
+            this.mutationValue.textContent = `${Math.round(value * 100)}%`;
+        });
+
+        this.visionSlider.addEventListener('input', () => {
+            const value = Math.round(parseFloat(this.visionSlider.value));
+            (CONFIG as any).VISION_RADIUS = value;
+            this.visionValue.textContent = `${value}px`;
+        });
+
+        this.foodValueSlider.addEventListener('input', () => {
+            const value = Math.round(parseFloat(this.foodValueSlider.value));
+            (CONFIG as any).FOOD_VALUE = value;
+            this.foodValueValue.textContent = `${value}`;
+        });
+
+        this.boundarySelect.addEventListener('change', () => {
+            const value = this.boundarySelect.value as 'bounce' | 'wrap';
+            (CONFIG as any).BOUNDARY_MODE = value;
+            this.boundaryValue.textContent = value;
         });
 
         // Debug checkboxes
@@ -144,15 +200,18 @@ export class Controls {
         document.getElementById('debug-vision')?.addEventListener('change', (e) => {
             (CONFIG as any).SHOW_DEBUG_VISION = (e.target as HTMLInputElement).checked;
         });
-    }
 
-    private setupParameterSlider(id: string, callback: (value: number) => void): void {
-        const slider = document.getElementById(id) as HTMLInputElement;
-        if (slider) {
-            slider.addEventListener('input', () => {
-                callback(parseFloat(slider.value));
-            });
-        }
+        document.getElementById('debug-axis')?.addEventListener('change', (e) => {
+            (CONFIG as any).SHOW_AXIS = (e.target as HTMLInputElement).checked;
+        });
+
+        document.getElementById('debug-trails')?.addEventListener('change', (e) => {
+            (CONFIG as any).SHOW_TRAILS = (e.target as HTMLInputElement).checked;
+        });
+
+        document.getElementById('debug-effects')?.addEventListener('change', (e) => {
+            (CONFIG as any).SHOW_HIT_EFFECTS = (e.target as HTMLInputElement).checked;
+        });
     }
 
     private getStrategyRatios(): Record<StrategyType, number> {
@@ -189,6 +248,26 @@ export class Controls {
                 valueEl.textContent = `${pct}%`;
             }
         }
+    }
+
+    private syncParameterUIFromConfig(): void {
+        this.foodRateSlider.value = CONFIG.FOOD_RESPAWN_RATE.toString();
+        this.foodRateValue.textContent = `${CONFIG.FOOD_RESPAWN_RATE.toFixed(1)}/s`;
+
+        this.maxAgentsSlider.value = CONFIG.MAX_AGENTS.toString();
+        this.maxAgentsValue.textContent = `${CONFIG.MAX_AGENTS}`;
+
+        this.mutationSlider.value = CONFIG.MUTATION_CHANCE.toString();
+        this.mutationValue.textContent = `${Math.round(CONFIG.MUTATION_CHANCE * 100)}%`;
+
+        this.visionSlider.value = CONFIG.VISION_RADIUS.toString();
+        this.visionValue.textContent = `${CONFIG.VISION_RADIUS}px`;
+
+        this.foodValueSlider.value = CONFIG.FOOD_VALUE.toString();
+        this.foodValueValue.textContent = `${CONFIG.FOOD_VALUE}`;
+
+        this.boundarySelect.value = CONFIG.BOUNDARY_MODE;
+        this.boundaryValue.textContent = CONFIG.BOUNDARY_MODE;
     }
 
     private updateUI(): void {

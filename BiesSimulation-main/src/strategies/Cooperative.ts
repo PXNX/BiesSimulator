@@ -8,6 +8,7 @@ import type { ActionType } from '../config/globalConfig';
 import { BaseStrategy } from './IStrategy';
 import type { EncounterMemory, EncounterResult } from './IStrategy';
 import { STRATEGY_COLORS } from '../renderer/Sprites';
+import { random } from '../utils/RNG';
 
 export class Cooperative extends BaseStrategy {
     readonly name = 'Cooperative' as const;
@@ -31,7 +32,7 @@ export class Cooperative extends BaseStrategy {
         // If much stronger and hungry for resources, might fight
         if (this.isStronger(self, other) && self.energy < 60) {
             // 30% chance to fight if stronger and hungry
-            if (Math.random() < 0.3) {
+            if (random() < 0.3) {
                 return 'FIGHT';
             }
         }

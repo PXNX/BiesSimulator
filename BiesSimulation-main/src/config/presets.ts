@@ -13,6 +13,7 @@ export interface SimulationPreset {
     foodValue?: number;
     mutationChance?: number;
     boundaryMode?: 'bounce' | 'wrap';
+    seed?: number | string;
 }
 
 export const PRESETS: Record<string, SimulationPreset> = {

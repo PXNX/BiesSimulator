@@ -9,6 +9,7 @@ import { Cooperative } from './Cooperative';
 import { TitForTat } from './TitForTat';
 import { RandomStrategy } from './RandomStrategy';
 import type { StrategyType } from '../config/globalConfig';
+import { random } from '../utils/RNG';
 
 // Singleton instances of each strategy
 const strategies: Record<StrategyType, IStrategy> = {
@@ -45,11 +46,11 @@ export function getStrategyTypes(): StrategyType[] {
  */
 export function pickRandomStrategy(ratios: Record<StrategyType, number>): StrategyType {
     const total = Object.values(ratios).reduce((sum, val) => sum + val, 0);
-    let random = Math.random() * total;
+    let roll = random() * total;
 
     for (const [type, ratio] of Object.entries(ratios)) {
-        random -= ratio;
-        if (random <= 0) {
+        roll -= ratio;
+        if (roll <= 0) {
             return type as StrategyType;
         }
     }

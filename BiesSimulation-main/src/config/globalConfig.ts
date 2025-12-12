@@ -24,6 +24,7 @@ export const CONFIG = {
     // ============ RENDERING ============
     CLEAR_COLOR: '#1a1a2e',
     SHOW_GRID: false,
+    SHOW_AXIS: false,
     SHOW_DEBUG_VISION: false,
     SHOW_TRAILS: false,
     SHOW_HIT_EFFECTS: true,
@@ -73,6 +74,8 @@ export const CONFIG = {
     KNOCKBACK_FORCE: 300,
 
     // ============ PAYOFF MATRIX (Hawk-Dove) ============
+    // Payoff deltas excluding explicit action costs.
+    // `FIGHT_COST` is applied separately per fighting agent.
     // [attacker outcome, defender outcome]
     PAYOFF: {
         FIGHT_FIGHT: [-20, -20],    // Both injured
@@ -101,6 +104,8 @@ export const CONFIG = {
     MAX_AGENTS: 150,                 // Population cap
     MIN_AGENTS: 5,                   // Minimum population (spawn if below)
     CHILD_ENERGY_RATIO: 0.4,         // Child gets this ratio of parent's spent energy
+    MAX_AGE: 180,                    // Natural lifespan in seconds
+    AGE_ENERGY_COST_FACTOR: 0.002,   // Base cost multiplier per second of age
 
     // ============ FOOD SYSTEM ============
     MAX_FOOD: 100,                   // Maximum food in world

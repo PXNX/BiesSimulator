@@ -7,8 +7,10 @@ import { Agent } from '../models/Agent';
 import { CONFIG, getWorldDimensions } from '../config/globalConfig';
 import type { StrategyType } from '../config/globalConfig';
 import { mutateTraits } from '../models/Traits';
+import type { Traits } from '../models/Traits';
 import { Vector2 } from '../models/Vector2';
 import { getStrategyTypes } from '../strategies/index';
+import { random, randomInt, randomRange } from '../utils/RNG';
 
 export interface EvolutionStats {
     births: number;
@@ -24,6 +26,15 @@ export class EvolutionSystem {
         totalBirths: 0,
         totalDeaths: 0,
     };
+
+    constructor(
+        private createAgent: (
+            x: number,
+            y: number,
+            strategyType: StrategyType,
+            traits?: Partial<Traits>
+        ) => Agent = (x, y, strategyType, traits) => new Agent(x, y, strategyType, traits)
+    ) { }
 
     /**
      * Update evolution for all agents
@@ -47,6 +58,15 @@ export class EvolutionSystem {
 
             // Check for death (energy depleted)
             if (agent.energy <= 0) {
+                agent.isDead = true;
+                deadAgents.push(agent);
+                this.stats.deaths++;
+                this.stats.totalDeaths++;
+                continue;
+            }
+
+            // Check for natural death by age
+            if (agent.age >= CONFIG.MAX_AGE) {
                 agent.isDead = true;
                 deadAgents.push(agent);
                 this.stats.deaths++;
@@ -103,25 +123,25 @@ export class EvolutionSystem {
 
         // Calculate spawn position (nearby parent)
         const { width, height } = getWorldDimensions();
-        const offset = Vector2.random().mult(30 + Math.random() * 20);
+        const offset = Vector2.random().mult(30 + randomRange(0, 20));
         const childX = Math.max(10, Math.min(width - 10, parent.position.x + offset.x));
         const childY = Math.max(10, Math.min(height - 10, parent.position.y + offset.y));
 
         // Determine child's strategy (with potential mutation)
         let childStrategy: StrategyType = parent.strategyType;
-        if (Math.random() < CONFIG.STRATEGY_MUTATION_CHANCE) {
+        if (random() < CONFIG.STRATEGY_MUTATION_CHANCE) {
             const strategies = getStrategyTypes();
-            childStrategy = strategies[Math.floor(Math.random() * strategies.length)];
+            childStrategy = strategies[randomInt(strategies.length)];
         }
 
         // Mutate traits if applicable
         let childTraits = { ...parent.traits };
-        if (Math.random() < CONFIG.MUTATION_CHANCE) {
+        if (random() < CONFIG.MUTATION_CHANCE) {
             childTraits = mutateTraits(parent.traits, CONFIG.MUTATION_STRENGTH);
         }
 
         // Create child
-        const child = new Agent(childX, childY, childStrategy, childTraits);
+        const child = this.createAgent(childX, childY, childStrategy, childTraits);
 
         // Child starts with portion of reproductive energy cost
         child.energy = energyCost * CONFIG.CHILD_ENERGY_RATIO;
@@ -134,13 +154,13 @@ export class EvolutionSystem {
      */
     private spawnRandomAgent(): Agent {
         const { width, height } = getWorldDimensions();
-        const x = 20 + Math.random() * (width - 40);
-        const y = 20 + Math.random() * (height - 40);
+        const x = randomRange(20, width - 20);
+        const y = randomRange(20, height - 20);
 
         const strategies = getStrategyTypes();
-        const strategy = strategies[Math.floor(Math.random() * strategies.length)];
+        const strategy = strategies[randomInt(strategies.length)];
 
-        return new Agent(x, y, strategy);
+        return this.createAgent(x, y, strategy);
     }
 
     /**

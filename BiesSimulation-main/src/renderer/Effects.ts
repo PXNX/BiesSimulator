@@ -170,7 +170,7 @@ export class EffectsSystem {
         ctx.globalAlpha = alpha * 0.6;
 
         switch (effect.type) {
-            case 'hit':
+            case 'hit': {
                 // Expanding ring
                 const ringRadius = effect.size * (1 + progress);
                 ctx.strokeStyle = effect.color;
@@ -186,8 +186,9 @@ export class EffectsSystem {
                 ctx.arc(effect.position.x, effect.position.y, ringRadius * 0.5, 0, Math.PI * 2);
                 ctx.fill();
                 break;
+            }
 
-            case 'consume':
+            case 'consume': {
                 // Rising particles
                 const particleCount = 5;
                 ctx.fillStyle = effect.color;
@@ -202,8 +203,9 @@ export class EffectsSystem {
                     ctx.fill();
                 }
                 break;
+            }
 
-            case 'birth':
+            case 'birth': {
                 // Expanding star
                 const starRadius = effect.size * progress;
                 ctx.strokeStyle = effect.color;
@@ -219,8 +221,9 @@ export class EffectsSystem {
                     ctx.stroke();
                 }
                 break;
+            }
 
-            case 'death':
+            case 'death': {
                 // Fading skull/X shape
                 ctx.strokeStyle = effect.color;
                 ctx.lineWidth = 2 * (1 - progress);
@@ -232,6 +235,7 @@ export class EffectsSystem {
                 ctx.lineTo(effect.position.x - deathSize, effect.position.y + deathSize);
                 ctx.stroke();
                 break;
+            }
         }
 
         ctx.restore();
@@ -240,7 +244,7 @@ export class EffectsSystem {
     private renderTrails(ctx: CanvasRenderingContext2D): void {
         ctx.save();
 
-        for (const [_, trail] of this.trails) {
+        for (const trail of this.trails.values()) {
             if (trail.length < 2) continue;
 
             ctx.beginPath();

@@ -12,4 +12,19 @@ export class Food extends Entity {
         super(x, y);
         this.energyValue = energyValue ?? CONFIG.FOOD_VALUE;
     }
+
+    /**
+     * Reset food state for reuse from pool.
+     */
+    resetForSpawn(x: number, y: number, energyValue?: number): void {
+        this.id = crypto.randomUUID();
+        this.position.set(x, y);
+        this.energyValue = energyValue ?? CONFIG.FOOD_VALUE;
+        this.isDead = false;
+    }
+
+    resetToPool(): void {
+        this.isDead = false;
+        this.energyValue = 0;
+    }
 }

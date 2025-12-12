@@ -2,6 +2,8 @@
  * Agent Traits - Defines individual characteristics
  */
 
+import { random } from '../utils/RNG';
+
 export interface Traits {
     speed: number;          // Max speed multiplier (0.5 - 1.5)
     vision: number;         // Vision radius multiplier
@@ -21,7 +23,7 @@ export const DEFAULT_TRAITS: Traits = {
  */
 export function mutateTraits(traits: Traits, mutationStrength: number = 0.1): Traits {
     const mutate = (value: number, min: number = 0, max: number = 2): number => {
-        const delta = (Math.random() - 0.5) * 2 * mutationStrength;
+        const delta = (random() - 0.5) * 2 * mutationStrength;
         return Math.max(min, Math.min(max, value + delta));
     };
 
@@ -38,9 +40,9 @@ export function mutateTraits(traits: Traits, mutationStrength: number = 0.1): Tr
  */
 export function randomTraits(): Traits {
     return {
-        speed: 0.8 + Math.random() * 0.4,      // 0.8 - 1.2
-        vision: 0.8 + Math.random() * 0.4,
-        aggression: Math.random(),              // 0 - 1
-        stamina: 0.8 + Math.random() * 0.4,
+        speed: 0.8 + random() * 0.4,      // 0.8 - 1.2
+        vision: 0.8 + random() * 0.4,
+        aggression: random(),              // 0 - 1
+        stamina: 0.8 + random() * 0.4,
     };
 }

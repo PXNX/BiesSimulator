@@ -101,6 +101,24 @@
           <input type="range" id="param-mutation" min="0" max="0.5" step="0.01" value="0.1" />
           <span id="param-mutation-val">10%</span>
         </div>
+        <div class="param-slider">
+          <span>Vision</span>
+          <input type="range" id="param-vision" min="30" max="200" step="5" value="80" />
+          <span id="param-vision-val">80px</span>
+        </div>
+        <div class="param-slider">
+          <span>Food Value</span>
+          <input type="range" id="param-foodvalue" min="5" max="100" step="5" value="25" />
+          <span id="param-foodvalue-val">25</span>
+        </div>
+        <div class="param-slider">
+          <span>Boundaries</span>
+          <select id="param-boundarymode" class="control-select">
+            <option value="bounce">Bounce</option>
+            <option value="wrap">Wrap</option>
+          </select>
+          <span id="param-boundarymode-val">bounce</span>
+        </div>
       </div>
 
       <!-- Debug Options -->
@@ -109,6 +127,9 @@
         <div class="checkbox-group">
           <label><input type="checkbox" id="debug-grid" /> Show Grid</label>
           <label><input type="checkbox" id="debug-vision" /> Show Vision</label>
+          <label><input type="checkbox" id="debug-axis" /> Show Axis</label>
+          <label><input type="checkbox" id="debug-trails" /> Show Trails</label>
+          <label><input type="checkbox" id="debug-effects" checked /> Show Effects</label>
         </div>
       </div>
     </div>
