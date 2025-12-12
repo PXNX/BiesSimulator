@@ -1,0 +1,41 @@
+# Dependencies
+node_modules
+
+# Source files (only dist is needed)
+src
+tests
+
+# Config files not needed in deployment
+.editorconfig
+.prettierrc.json
+.prettierignore
+eslint.config.js
+tsconfig.json
+vitest.config.ts
+
+# Documentation
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage
+
+# Misc
+.DS_Store
