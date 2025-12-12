@@ -160,9 +160,11 @@ export class World {
      * Initialize the world with agents and food
      */
     init(): void {
+        // Clear lingering visual effects/trails to avoid reset artifacts
+        this.effects.clear();
+
         // Return existing entities to pools before resetting
         for (const agent of this.agents) {
-            this.effects.removeTrail(agent.id);
             this.agentPool.release(agent);
         }
         for (const f of this.food) {
