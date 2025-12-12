@@ -53,6 +53,7 @@ export class EffectsSystem {
      * Add a consume effect (food eaten)
      */
     addConsumeEffect(x: number, y: number): void {
+        if (!this.showHitEffects) return;
         this.addEffect({
             type: 'consume',
             position: new Vector2(x, y),
@@ -67,6 +68,7 @@ export class EffectsSystem {
      * Add a birth effect
      */
     addBirthEffect(x: number, y: number): void {
+        if (!this.showHitEffects) return;
         this.addEffect({
             type: 'birth',
             position: new Vector2(x, y),
@@ -81,6 +83,7 @@ export class EffectsSystem {
      * Add a death effect
      */
     addDeathEffect(x: number, y: number, color: string): void {
+        if (!this.showHitEffects) return;
         this.addEffect({
             type: 'death',
             position: new Vector2(x, y),

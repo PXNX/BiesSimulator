@@ -10,6 +10,7 @@ import { CONFIG, getWorldDimensions } from '../config/globalConfig';
 import { SpatialGrid } from '../core/SpatialGrid';
 import { Vector2 } from '../models/Vector2';
 import { random } from '../utils/RNG';
+import { withPooledVector } from '../utils/ObjectPool';
 
 export class MovementSystem {
     /**
@@ -28,9 +29,16 @@ export class MovementSystem {
 
             // Separation to avoid crowding
             if (neighbors.length > 0) {
-                const separation = this.separate(agent, neighbors, CONFIG.COLLISION_RADIUS * 2);
-                separation.mult(0.6);
-                agent.applyForce(separation);
+                withPooledVector((separation) => {
+                    this.separateInto(
+                        agent,
+                        neighbors,
+                        CONFIG.COLLISION_RADIUS * 2,
+                        separation
+                    );
+                    separation.mult(0.6);
+                    agent.applyForce(separation);
+                });
             }
 
             // Flee from nearby threats when low on energy
@@ -110,17 +118,34 @@ export class MovementSystem {
         // Slightly randomize the wander angle
         agent.wanderAngle += (random() - 0.5) * wanderJitter * Math.PI;
 
-        // Calculate target on wander circle
-        const circleCenter = agent.velocity.copy().normalize().mult(wanderDistance);
-        const displacement = Vector2.fromAngle(agent.wanderAngle).mult(wanderRadius);
+        // Calculate target on wander circle (pooled vectors to avoid allocations)
+        withPooledVector((circleCenter) =>
+            withPooledVector((displacement) =>
+                withPooledVector((wanderTarget) =>
+                    withPooledVector((steer) => {
+                        circleCenter.set(agent.velocity.x, agent.velocity.y);
+                        if (circleCenter.magSq() > 0) {
+                            circleCenter.normalize().mult(wanderDistance);
+                        } else {
+                            circleCenter.set(1, 0).mult(wanderDistance);
+                        }
 
-        const wanderTarget = agent.position.copy().add(circleCenter).add(displacement);
+                        displacement
+                            .set(Math.cos(agent.wanderAngle), Math.sin(agent.wanderAngle))
+                            .mult(wanderRadius);
 
-        // Steer towards wander target
-        const steer = this.seek(agent, wanderTarget);
-        steer.mult(CONFIG.WANDER_STRENGTH / 100);
+                        wanderTarget.set(
+                            agent.position.x + circleCenter.x + displacement.x,
+                            agent.position.y + circleCenter.y + displacement.y
+                        );
 
-        agent.applyForce(steer);
+                        this.seekInto(agent, wanderTarget, steer);
+                        steer.mult(CONFIG.WANDER_STRENGTH / 100);
+                        agent.applyForce(steer);
+                    })
+                )
+            )
+        );
     }
 
     /**
@@ -128,19 +153,22 @@ export class MovementSystem {
      * @returns Steering force vector
      */
     seek(agent: Agent, target: Vector2): Vector2 {
-        const desired = Vector2.subtract(target, agent.position);
-        const distance = desired.mag();
+        const out = new Vector2(0, 0);
+        return this.seekInto(agent, target, out);
+    }
 
-        if (distance < 0.01) return Vector2.zero();
+    private seekInto(agent: Agent, target: Vector2, out: Vector2): Vector2 {
+        out.set(target.x - agent.position.x, target.y - agent.position.y);
+        const distance = out.mag();
+        if (distance < 0.01) {
+            out.set(0, 0);
+            return out;
+        }
 
-        // Scale by max speed
-        desired.setMag(agent.maxSpeed);
-
-        // Calculate steering force (desired - current velocity)
-        const steer = desired.sub(agent.velocity);
-        steer.limit(agent.maxForce);
-
-        return steer;
+        out.setMag(agent.maxSpeed);
+        out.sub(agent.velocity);
+        out.limit(agent.maxForce);
+        return out;
     }
 
     /**
@@ -148,21 +176,24 @@ export class MovementSystem {
      * @returns Steering force vector
      */
     flee(agent: Agent, threat: Vector2): Vector2 {
-        const desired = Vector2.subtract(agent.position, threat);
-        const distance = desired.mag();
+        const out = new Vector2(0, 0);
+        return this.fleeInto(agent, threat, out);
+    }
 
-        // Only flee if within vision radius
-        if (distance > agent.visionRadius) return Vector2.zero();
+    private fleeInto(agent: Agent, threat: Vector2, out: Vector2): Vector2 {
+        out.set(agent.position.x - threat.x, agent.position.y - threat.y);
+        const distance = out.mag();
 
-        // Flee strength inversely proportional to distance
-        const fleeStrength = 1 - (distance / agent.visionRadius);
+        if (distance > agent.visionRadius) {
+            out.set(0, 0);
+            return out;
+        }
 
-        desired.setMag(agent.maxSpeed * fleeStrength);
-
-        const steer = desired.sub(agent.velocity);
-        steer.limit(agent.maxForce);
-
-        return steer;
+        const fleeStrength = 1 - distance / agent.visionRadius;
+        out.setMag(agent.maxSpeed * fleeStrength);
+        out.sub(agent.velocity);
+        out.limit(agent.maxForce);
+        return out;
     }
 
     /**
@@ -170,23 +201,32 @@ export class MovementSystem {
      * @returns Steering force vector
      */
     arrive(agent: Agent, target: Vector2, slowRadius: number = 50): Vector2 {
-        const desired = Vector2.subtract(target, agent.position);
-        const distance = desired.mag();
+        const out = new Vector2(0, 0);
+        return this.arriveInto(agent, target, slowRadius, out);
+    }
 
-        if (distance < 0.01) return Vector2.zero();
+    private arriveInto(
+        agent: Agent,
+        target: Vector2,
+        slowRadius: number,
+        out: Vector2
+    ): Vector2 {
+        out.set(target.x - agent.position.x, target.y - agent.position.y);
+        const distance = out.mag();
+        if (distance < 0.01) {
+            out.set(0, 0);
+            return out;
+        }
 
-        // Slow down within radius
         let speed = agent.maxSpeed;
         if (distance < slowRadius) {
             speed = agent.maxSpeed * (distance / slowRadius);
         }
 
-        desired.setMag(speed);
-
-        const steer = desired.sub(agent.velocity);
-        steer.limit(agent.maxForce);
-
-        return steer;
+        out.setMag(speed);
+        out.sub(agent.velocity);
+        out.limit(agent.maxForce);
+        return out;
     }
 
     /**
@@ -194,32 +234,43 @@ export class MovementSystem {
      * @returns Steering force vector
      */
     separate(agent: Agent, neighbors: Agent[], separationRadius: number = 25): Vector2 {
-        const steer = Vector2.zero();
+        const out = new Vector2(0, 0);
+        return this.separateInto(agent, neighbors, separationRadius, out);
+    }
+
+    private separateInto(
+        agent: Agent,
+        neighbors: Agent[],
+        separationRadius: number,
+        out: Vector2
+    ): Vector2 {
+        out.set(0, 0);
         let count = 0;
+        const radiusSq = separationRadius * separationRadius;
 
         for (const other of neighbors) {
             if (other.id === agent.id || other.isDead) continue;
 
-            const distance = agent.position.dist(other.position);
+            const dx = agent.position.x - other.position.x;
+            const dy = agent.position.y - other.position.y;
+            const distSq = dx * dx + dy * dy;
 
-            if (distance > 0 && distance < separationRadius) {
-                // Calculate repulsion vector
-                const diff = Vector2.subtract(agent.position, other.position);
-                diff.normalize();
-                diff.div(distance); // Weight by distance (closer = stronger)
-                steer.add(diff);
+            if (distSq > 0 && distSq < radiusSq) {
+                // Weight by distance squared (closer = stronger)
+                out.x += dx / distSq;
+                out.y += dy / distSq;
                 count++;
             }
         }
 
         if (count > 0) {
-            steer.div(count);
-            steer.setMag(agent.maxSpeed);
-            steer.sub(agent.velocity);
-            steer.limit(agent.maxForce);
+            out.div(count);
+            out.setMag(agent.maxSpeed);
+            out.sub(agent.velocity);
+            out.limit(agent.maxForce);
         }
 
-        return steer;
+        return out;
     }
 
     /**
@@ -237,31 +288,32 @@ export class MovementSystem {
             if (agent.position.y > height) agent.position.y = 0;
         } else {
             // Bounce off edges with steering
-            let desired: Vector2 | null = null;
+            let desiredX: number | null = null;
+            let desiredY: number | null = null;
 
             if (agent.position.x < margin) {
-                desired = new Vector2(agent.maxSpeed, agent.velocity.y);
+                desiredX = agent.maxSpeed;
             } else if (agent.position.x > width - margin) {
-                desired = new Vector2(-agent.maxSpeed, agent.velocity.y);
+                desiredX = -agent.maxSpeed;
             }
 
             if (agent.position.y < margin) {
-                desired = new Vector2(
-                    desired?.x ?? agent.velocity.x,
-                    agent.maxSpeed
-                );
+                desiredY = agent.maxSpeed;
             } else if (agent.position.y > height - margin) {
-                desired = new Vector2(
-                    desired?.x ?? agent.velocity.x,
-                    -agent.maxSpeed
-                );
+                desiredY = -agent.maxSpeed;
             }
 
-            if (desired) {
-                desired.normalize().mult(agent.maxSpeed);
-                const steer = desired.sub(agent.velocity);
-                steer.limit(agent.maxForce * 2); // Stronger force for boundaries
-                agent.applyForce(steer);
+            if (desiredX != null || desiredY != null) {
+                withPooledVector((desired) => {
+                    desired.set(
+                        desiredX ?? agent.velocity.x,
+                        desiredY ?? agent.velocity.y
+                    );
+                    desired.normalize().mult(agent.maxSpeed);
+                    desired.sub(agent.velocity);
+                    desired.limit(agent.maxForce * 2); // Stronger force for boundaries
+                    agent.applyForce(desired);
+                });
             }
 
             // Hard clamp position to prevent escaping
@@ -274,17 +326,21 @@ export class MovementSystem {
      * Apply steering to seek food
      */
     seekFood(agent: Agent, foodPosition: Vector2): void {
-        const steer = this.arrive(agent, foodPosition, 30);
-        steer.mult(1.5); // Higher priority for food
-        agent.applyForce(steer);
+        withPooledVector((steer) => {
+            this.arriveInto(agent, foodPosition, 30, steer);
+            steer.mult(1.5); // Higher priority for food
+            agent.applyForce(steer);
+        });
     }
 
     /**
      * Apply steering to flee from threat
      */
     fleeFrom(agent: Agent, threatPosition: Vector2): void {
-        const steer = this.flee(agent, threatPosition);
-        steer.mult(2); // High priority for fleeing
-        agent.applyForce(steer);
+        withPooledVector((steer) => {
+            this.fleeInto(agent, threatPosition, steer);
+            steer.mult(2); // High priority for fleeing
+            agent.applyForce(steer);
+        });
     }
 }
