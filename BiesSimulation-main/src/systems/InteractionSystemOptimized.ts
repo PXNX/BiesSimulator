@@ -41,13 +41,13 @@ export class InteractionSystemOptimized {
     private trackHeatmap: boolean = true;
     private trackEvents: boolean = true;
 
-    // Pre-allocated buffers
-    private tempEvent: InteractionEvent = {
-        type: 'consume',
-        position: { x: 0, y: 0 },
-        agents: [],
-        timestamp: 0
-    };
+    // Pre-allocated buffers (unused, kept for future optimization)
+    // private tempEvent: InteractionEvent = {
+    //     type: 'consume',
+    //     position: { x: 0, y: 0 },
+    //     agents: [],
+    //     timestamp: 0
+    // };
 
     resetStats(): void {
         this.recentEvents.length = 0;

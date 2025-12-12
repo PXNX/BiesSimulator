@@ -68,12 +68,12 @@ export class OptimizedSpatialGrid<T extends SpatialEntity> {
     /**
      * Unpack cell key into col and row
      */
-    private unpackCellKey(key: number): { col: number; row: number } {
-        return {
-            col: key & 0xFFFF,
-            row: key >>> 16,
-        };
-    }
+    // private unpackCellKey(key: number): { col: number; row: number } {
+    //     return {
+    //         col: key & 0xFFFF,
+    //         row: key >>> 16,
+    //     };
+    // }
 
     /**
      * Get or create a cell

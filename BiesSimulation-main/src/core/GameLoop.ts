@@ -13,7 +13,6 @@ export class GameLoop {
     private frameCount: number = 0;
     private fpsTime: number = 0;
     private currentFPS: number = 60;
-    private targetFPS: number = 60;
     private skipRenderFrames: number = 0;
 
     // Adaptive quality settings

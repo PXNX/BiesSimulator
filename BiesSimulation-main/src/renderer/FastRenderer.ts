@@ -18,8 +18,8 @@ const STRATEGY_COLORS: Record<StrategyType, string> = {
 
 export class FastRenderer {
     private ctx: CanvasRenderingContext2D;
-    private offscreenCanvas: OffscreenCanvas | null = null;
-    private offscreenCtx: OffscreenCanvasRenderingContext2D | null = null;
+    // private offscreenCanvas: OffscreenCanvas | null = null;
+    // private offscreenCtx: OffscreenCanvasRenderingContext2D | null = null;
 
     // Sprite caching
     private spriteCache: Map<string, ImageBitmap | ImageData> = new Map();
@@ -37,9 +37,10 @@ export class FastRenderer {
     private initOffscreenCanvas() {
         try {
             // Use OffscreenCanvas if available (better performance)
+            // Currently unused but kept for potential future optimizations
             if (typeof OffscreenCanvas !== 'undefined') {
-                this.offscreenCanvas = new OffscreenCanvas(this.cacheSize * 2, this.cacheSize * 2);
-                this.offscreenCtx = this.offscreenCanvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
+                // this.offscreenCanvas = new OffscreenCanvas(this.cacheSize * 2, this.cacheSize * 2);
+                // this.offscreenCtx = this.offscreenCanvas.getContext('2d') as OffscreenCanvasRenderingContext2D;
             }
         } catch (e) {
             console.warn('OffscreenCanvas not available, using regular canvas');

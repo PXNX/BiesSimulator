@@ -18,8 +18,8 @@ export class SpatialGridOptimized<T extends SpatialEntity> {
     private entityMap: Map<string, T> = new Map();
 
     // Pre-allocated query result buffer
-    private queryBuffer: T[] = [];
-    private readonly MAX_QUERY_RESULTS = 100;
+    // private queryBuffer: T[] = [];
+    // private readonly MAX_QUERY_RESULTS = 100;
 
     private cellSize: number;
     private width: number;
@@ -43,7 +43,7 @@ export class SpatialGridOptimized<T extends SpatialEntity> {
         }
 
         // Pre-allocate query buffer
-        this.queryBuffer = new Array(this.MAX_QUERY_RESULTS);
+        // this.queryBuffer = new Array(this.MAX_QUERY_RESULTS);
     }
 
     /**

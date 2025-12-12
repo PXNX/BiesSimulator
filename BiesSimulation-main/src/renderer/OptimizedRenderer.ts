@@ -175,14 +175,12 @@ export class OptimizedRenderer {
         ctx.fillRect(size * 0.4, -size * 0.15, size * 0.4, size * 0.3);
     }
 
-    private renderAgentLow(agent: Agent, size: number, color: string): void {
-        const ctx = this.ctx;
-
+    private renderAgentLow(_agent: Agent, size: number, color: string): void {
         // Simple dot
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(0, 0, size * 0.7, 0, Math.PI * 2);
-        ctx.fill();
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, size * 0.7, 0, Math.PI * 2);
+        this.ctx.fill();
     }
 
     private renderFoodLOD(food: Food, lod: number): void {
