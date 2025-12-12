@@ -36,16 +36,16 @@ export class EffectsSystem {
     /**
      * Add a hit flash effect
      */
-    addHitEffect(x: number, y: number, color: string = '#ef4444'): void {
+    addHitEffect(x: number, y: number, color: string = '#ff2244'): void {
         if (!this.showHitEffects) return;
 
         this.addEffect({
             type: 'hit',
             position: new Vector2(x, y),
             startTime: performance.now(),
-            duration: 400,
+            duration: 450,
             color,
-            size: 25,
+            size: 30,
         });
     }
 
@@ -58,9 +58,9 @@ export class EffectsSystem {
             type: 'consume',
             position: new Vector2(x, y),
             startTime: performance.now(),
-            duration: 300,
-            color: '#4ade80',
-            size: 15,
+            duration: 350,
+            color: '#00ffaa',
+            size: 20,
         });
     }
 
@@ -73,9 +73,9 @@ export class EffectsSystem {
             type: 'birth',
             position: new Vector2(x, y),
             startTime: performance.now(),
-            duration: 500,
-            color: '#22c55e',
-            size: 20,
+            duration: 550,
+            color: '#00ff88',
+            size: 25,
         });
     }
 

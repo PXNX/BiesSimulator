@@ -495,6 +495,9 @@ export class World {
             this.sprites = new Sprites(ctx);
         }
 
+        // Update sprite animation time (for pulsing effects)
+        this.sprites.update(1 / 60); // Approximate frame time
+
         // Draw debug grid if enabled
         if (CONFIG.SHOW_GRID) {
             renderer.drawGrid();

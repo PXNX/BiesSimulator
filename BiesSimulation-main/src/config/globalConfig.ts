@@ -22,14 +22,14 @@ export function getWorldDimensions(): WorldDimensions {
 
 export const CONFIG = {
     // ============ RENDERING ============
-    CLEAR_COLOR: '#1a1a2e',
+    CLEAR_COLOR: '#0a0a0f',
     SHOW_GRID: false,
     SHOW_AXIS: false,
     SHOW_DEBUG_VISION: false,
     SHOW_TRAILS: false,
     SHOW_HIT_EFFECTS: true,
     GRID_SIZE: 50,
-    GRID_COLOR: 'rgba(255, 255, 255, 0.1)',
+    GRID_COLOR: 'rgba(255, 255, 255, 0.05)',
 
     // ============ AGENT DEFAULTS ============
     AGENT_SIZE: 10,
@@ -47,7 +47,7 @@ export const CONFIG = {
     // ============ FOOD ============
     FOOD_SIZE: 5,
     FOOD_VALUE: 25,              // Energy gain
-    FOOD_COLOR: '#4ade80',
+    FOOD_COLOR: '#00ffaa',
 
     // ============ SPAWN SETTINGS ============
     INITIAL_AGENT_COUNT: 30,
