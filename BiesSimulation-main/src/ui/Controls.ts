@@ -21,6 +21,10 @@ export class Controls {
     private pauseBtn: HTMLButtonElement;
     private stepBtn: HTMLButtonElement;
     private resetBtn: HTMLButtonElement;
+    private expertToggleBtn?: HTMLButtonElement;
+    private expertIconBtn?: HTMLButtonElement;
+    private guideBtn?: HTMLButtonElement;
+    private onboardingBtn?: HTMLButtonElement;
     private speedSlider: HTMLInputElement;
     private speedValue: HTMLElement;
     private presetSelect: HTMLSelectElement;
@@ -48,6 +52,8 @@ export class Controls {
     private foodValueValue: HTMLElement;
     private boundarySelect: HTMLSelectElement;
     private boundaryValue: HTMLElement;
+    private advancedSections: NodeListOf<HTMLElement>;
+    private expertMode: boolean = false;
 
     // Strategy ratio elements
     private ratioSliders: Map<StrategyType, HTMLInputElement> = new Map();
@@ -63,6 +69,10 @@ export class Controls {
         this.pauseBtn = document.getElementById('btn-pause') as HTMLButtonElement;
         this.stepBtn = document.getElementById('btn-step') as HTMLButtonElement;
         this.resetBtn = document.getElementById('btn-reset') as HTMLButtonElement;
+        this.expertToggleBtn = document.getElementById('btn-expert-toggle') as HTMLButtonElement;
+        this.expertIconBtn = document.getElementById('btn-expert-mode') as HTMLButtonElement;
+        this.guideBtn = document.getElementById('btn-guide') as HTMLButtonElement;
+        this.onboardingBtn = document.getElementById('btn-onboarding') as HTMLButtonElement;
         this.speedSlider = document.getElementById('speed-slider') as HTMLInputElement;
         this.speedValue = document.getElementById('speed-value')!;
         this.presetSelect = document.getElementById('preset-select') as HTMLSelectElement;
@@ -89,6 +99,7 @@ export class Controls {
         this.foodValueValue = document.getElementById('param-foodvalue-val')!;
         this.boundarySelect = document.getElementById('param-boundarymode') as HTMLSelectElement;
         this.boundaryValue = document.getElementById('param-boundarymode-val')!;
+        this.advancedSections = document.querySelectorAll('.advanced-section');
 
         this.payoffInputs = this.getPayoffInputBindings().map(({ id, key, idx }) => ({
             key,
@@ -154,6 +165,22 @@ export class Controls {
             this.syncParameterUIFromConfig();
             this.syncSeedUIFromRng();
             this.updateUI();
+        });
+
+        // Expert / Guide
+        const expertLocal = localStorage.getItem('bies-expert-mode');
+        if (expertLocal === '1') {
+            this.setExpertMode(true);
+        } else {
+            document.body.classList.add('advanced-hidden');
+        }
+        this.expertToggleBtn?.addEventListener('click', () => this.toggleExpertMode());
+        this.expertIconBtn?.addEventListener('click', () => this.toggleExpertMode());
+        this.onboardingBtn?.addEventListener('click', () => {
+            document.dispatchEvent(new CustomEvent('onboarding:start'));
+        });
+        this.guideBtn?.addEventListener('click', () => {
+            document.dispatchEvent(new CustomEvent('onboarding:start'));
         });
 
         // Speed slider
@@ -348,6 +375,45 @@ export class Controls {
                 valueEl.textContent = `${pct}%`;
             }
         }
+    }
+
+    toggleExpertMode(force?: boolean): void {
+        const enabled = force != null ? force : !this.expertMode;
+        this.setExpertMode(enabled);
+    }
+
+    setExpertMode(enabled: boolean): void {
+        this.expertMode = enabled;
+        document.body.classList.toggle('advanced-hidden', !enabled);
+        if (enabled) {
+            localStorage.setItem('bies-expert-mode', '1');
+        } else {
+            localStorage.removeItem('bies-expert-mode');
+        }
+        if (this.expertToggleBtn) {
+            this.expertToggleBtn.textContent = enabled ? 'Expert: ON' : 'Expert Mode';
+        }
+        if (this.expertIconBtn) {
+            this.expertIconBtn.textContent = enabled ? '✓' : '★';
+            this.expertIconBtn.title = enabled ? 'Expert mode enabled' : 'Expert mode';
+        }
+    }
+
+    setSpeedMultiplier(multiplier: number): void {
+        const clamped = Math.max(
+            parseFloat(this.speedSlider.min),
+            Math.min(parseFloat(this.speedSlider.max), multiplier)
+        );
+        this.speedSlider.value = `${clamped}`;
+        this.world.timeScale = clamped;
+        this.speedValue.textContent = `${clamped.toFixed(1)}x`;
+    }
+
+    selectPreset(name: string): void {
+        if (!PRESETS[name as keyof typeof PRESETS]) return;
+        this.presetSelect.value = name;
+        const event = new Event('change');
+        this.presetSelect.dispatchEvent(event);
     }
 
     private syncParameterUIFromConfig(): void {

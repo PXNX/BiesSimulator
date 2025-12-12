@@ -486,9 +486,9 @@ export class World {
     /**
      * Render the world
      */
-    render(renderer: CanvasRenderer): void {
+    render(renderer: CanvasRenderer, clearColor?: string): void {
         const ctx = renderer.getContext();
-        renderer.clear();
+        renderer.clear(clearColor);
 
         // Initialize sprites if needed
         if (!this.sprites) {

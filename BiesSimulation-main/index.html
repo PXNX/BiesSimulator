@@ -16,10 +16,20 @@
   <div id="controls-panel" class="controls-panel">
     <div class="controls-header">
       <h2>Controls</h2>
-      <button id="toggle-controls" class="btn-icon" title="Toggle panel">−</button>
+      <button id="toggle-controls" class="btn-icon" title="Toggle panel">-</button>
+      <button id="btn-expert-mode" class="btn-icon" title="Expert mode toggle">★</button>
+      <button id="btn-guide" class="btn-icon" title="Guide / Onboarding">?</button>
     </div>
 
     <div class="controls-content">
+      <!-- Modes / Guide -->
+      <div class="control-group mode-row">
+        <div class="btn-group">
+          <button id="btn-expert-toggle" class="btn">Expert Mode</button>
+          <button id="btn-onboarding" class="btn">Start Guide</button>
+        </div>
+      </div>
+
       <!-- Simulation Controls -->
       <div class="control-group">
         <div class="btn-group">
@@ -63,7 +73,7 @@
       </div>
 
       <!-- Config import/export -->
-      <div class="control-group">
+      <div class="control-group advanced-section">
         <label class="control-label">Config:</label>
         <div class="btn-group">
           <button id="config-copy" class="btn" title="Copy current config as JSON">Copy Config</button>
@@ -143,7 +153,7 @@
       </div>
 
       <!-- Game Rules (runtime editable payoff/costs) -->
-      <div class="control-group" id="game-rules-group">
+      <div class="control-group advanced-section" id="game-rules-group">
         <label class="control-label">Game Rules:</label>
 
         <div class="rules-row">
@@ -199,7 +209,7 @@
       </div>
 
       <!-- Debug Options -->
-      <div class="control-group">
+      <div class="control-group advanced-section">
         <label class="control-label">Debug:</label>
         <div class="checkbox-group">
           <label><input type="checkbox" id="debug-grid" /> Show Grid</label>
@@ -218,6 +228,8 @@
       <h3>Statistics</h3>
       <span id="fps-display" class="fps">60 FPS</span>
     </div>
+
+    <div id="hint-bar" class="hint-bar hidden" aria-live="polite"></div>
 
     <div class="stats-content">
       <div class="stat-row">
@@ -273,6 +285,20 @@
       </div>
       <div class="analysis-content">
         <table id="heatmap-table" class="heatmap-table" aria-label="Strategy vs Strategy heatmap"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Onboarding Overlay -->
+  <div id="onboarding-overlay" class="onboarding hidden" role="dialog" aria-modal="true">
+    <div class="onboarding-card">
+      <div class="onboarding-step">
+        <div class="onboarding-title" id="onboarding-title"></div>
+        <div class="onboarding-desc" id="onboarding-desc"></div>
+      </div>
+      <div class="onboarding-actions">
+        <button id="onboarding-skip" class="btn">Skip</button>
+        <button id="onboarding-next" class="btn btn-primary">Next</button>
       </div>
     </div>
   </div>

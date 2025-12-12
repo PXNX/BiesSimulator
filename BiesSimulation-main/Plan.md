@@ -38,6 +38,14 @@ Canvas ist Bühne (ruhig, atmosphärisch), UI ist Labor-HUD (klar, modular), Age
 - **Ein Farbsystem:** Strategie-Farben identisch in UI + Sprites + Chart.
 - **Performance-Budget:** "FX/Background" sind Quality-Stufen, kein Default-Overkill.
 
+## Umsetzungsstand (Kap. 1 & 2)
+- Dynamic Color System (Mood Themes peace/conflict/cooperative + Canvas-Farbe) aktiv.
+- Advanced Typography & Micro-Motion: Space Grotesk + Parallax/Layered Background + Hover/Focus-Motion.
+- Progressive Disclosure: Expert Mode Toggle (advanced groups hidden by default), Guide/Onboarding Overlay.
+- Guided Workflows: Onboarding Steps (Presets, Start/Pause, Expert Mode Hinweis).
+- Contextual Help: Hint-Bar mit heuristischen Tipps (Aggro/Koop/Energie/Food).
+- Simplified Control Interfaces: Gesten (Double-Tap Pause, Pinch-Speed), Voice Commands (start/pause/reset/faster/slower, Preset Keywords).
+
 ---
 
 # 2) UI Umbau (Layout + Information Architecture)
